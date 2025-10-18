@@ -2,7 +2,12 @@
 #define DATABASE_MANAGER_H
 
 #include <string>
+#include <memory>
 #include <sqlite3.h>
+#include "../entities/Task.h"
+#include "../entities/Project.h"
+#include "../entities/Reminder.h"
+
 
 // 前置声明
 class Task;
@@ -14,6 +19,7 @@ class ChallengeTemplate;
 class UserAchievement;
 class ExperienceRecord;
 class UserRanking;
+//后续补充
 
 class DatabaseManager {
 private:
@@ -38,7 +44,11 @@ public:
     bool initialize(const std::string& databasePath = "task_manager.db");
     bool close();
     bool isOpen() const;
-    
+
+    // 工具方法
+    int getLastInsertId() const;
+    bool execute(const std::string& sql);
+
     // 事务管理
     bool beginTransaction();
     bool commitTransaction();
@@ -70,5 +80,6 @@ public:
     // 获取原始数据库连接（谨慎使用）
     sqlite3* getRawConnection();
 };
+
 
 #endif // DATABASE_MANAGER_H
