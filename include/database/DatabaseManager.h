@@ -4,9 +4,8 @@
 #include <string>
 #include <memory>
 #include <sqlite3.h>
-#include "../entities/Task.h"
-#include "../entities/Project.h"
-#include "../entities/Reminder.h"
+#include <vector>  // 用于getAllTableNames()返回类型
+#include <unordered_map> // 可能的缓存实现
 
 
 // 前置声明
@@ -83,3 +82,4 @@ public:
 
 
 #endif // DATABASE_MANAGER_H
+
