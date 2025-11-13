@@ -26,6 +26,17 @@ private:
     sqlite3* db;
     std::string dbPath;
     bool isTransactionActive;
+    long totalQueryCount;
+    long failedQueryCount;
+    
+    // 私有方法 - 创建各个表
+    bool createProjectTable();
+    bool createTaskTable();
+    bool createChallengeTable();
+    bool createReminderTable();
+    bool createAchievementTable();
+    bool createUserStatsTable();
+    bool createUserSettingsTable();
     
     // 私有构造函数，单例模式
     DatabaseManager();
@@ -78,6 +89,9 @@ public:
     
     // 获取原始数据库连接（谨慎使用）
     sqlite3* getRawConnection();
+    
+    // 获取数据库路径
+    std::string getDatabasePath() const;
 };
 
 
