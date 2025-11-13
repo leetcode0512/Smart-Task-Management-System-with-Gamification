@@ -1,64 +1,54 @@
 #pragma once
-#include <string>
 #include <vector>
-#include <map>
-#include "common/entities.h"
+#include <string>
+#include <memory>
+#include <unordered_map>
+#include "AchievementDAO.h"  // 包含队友的DAO头文件
 
-class AchievementDAO {
+// 使用 Entities.h 中的 AchievementDefinition 和 UserAchievement
+// 不再需要本地定义的 Achievement 结构体
+
+class AchievementManager {
 private:
-    std::string dataFilePath;
+    std::unique_ptr<AchievementDAO> achievementDAO;  // 使用智能指针管理DAO
+    int currentUserId;  // 当前用户ID
     
-    // 内部数据存储
-    std::vector<Achievement> achievementDefinitions;
-    std::vector<Achievement> userAchievements;
+    // 成就定义缓存
+    std::vector<AchievementDefinition> achievementDefinitions;
+    std::unordered_map<std::string, UserAchievement> userAchievements;
     
-    // 文件操作
-    std::string getDefinitionFilePath() const;
-    std::string getUserAchievementFilePath(int userId) const;
-    bool fileExists(const std::string& filename) const;
-    std::string readFile(const std::string& filename) const;
-    bool writeFile(const std::string& filename, const std::string& content);
-
 public:
-    AchievementDAO();
-    explicit AchievementDAO(const std::string& basePath);
+    // 构造函数接收 AchievementDAO 和用户ID
+    AchievementManager(std::unique_ptr<AchievementDAO> dao, int userId = 1);
     
-    // 成就定义管理
-    bool loadAchievementDefinitions();
-    bool saveAchievementDefinitions();
-    std::vector<Achievement> getAllAchievementDefinitions() const;
-    Achievement getAchievementDefinition(const std::string& achievementName) const;
-    Achievement getAchievementDefinitionById(int achievementId) const;
+    // 核心方法
+    void initialize();
+    void checkAllAchievements();
+    void unlockAchievement(const std::string& achievementId);
+    void updateAchievementProgress(const std::string& achievementId, int progress);
+    void displayUnlockedAchievements();
+    void displayAllAchievements();
+    void displayAchievementStatistics();
     
-    // 用户成就管理
-    bool loadUserAchievements(int userId);
-    bool saveUserAchievements(int userId);
-    std::vector<Achievement> getUserAchievements(int userId) const;
-    Achievement* getUserAchievement(int userId, const std::string& achievementName);
-    Achievement* getUserAchievementById(int userId, int achievementId);
-    
-    // 成就进度更新
-    bool unlockAchievement(int userId, const std::string& achievementName);
-    bool unlockAchievementById(int userId, int achievementId);
-    bool updateAchievementProgress(int userId, const std::string& achievementName, int progress);
-    bool updateAchievementProgressById(int userId, int achievementId, int progress);
-    bool resetUserAchievements(int userId);
-    
-    // 统计查询
-    int getUnlockedAchievementCount(int userId) const;
-    int getTotalXP(int userId) const;
-    std::vector<Achievement> getRecentlyUnlockedAchievements(int userId, int count = 5) const;
-    std::vector<Achievement> getAchievementsByCategory(int userId, const std::string& category) const;
+    // 具体成就检查方法
+    void checkFirstTaskAchievement();
+    void checkSevenDayStreakAchievement();
+    void checkTimeManagementAchievement();
+    void checkPomodoroMasterAchievement();
     
     // 工具方法
-    void initializeDefaultAchievements();
-    bool userAchievementFileExists(int userId) const;
+    bool loadAchievementDefinitions();
+    bool loadUserAchievements();
+    void printAchievement(const AchievementDefinition& definition, 
+                         const UserAchievement* userAchievement = nullptr) const;
     
-    // 生成时间戳
-    static std::string getCurrentTimestamp();
+    // 获取统计信息（需要队友实现其他DAO）
+    int getCompletedTaskCount() const;
+    int getCurrentStreak() const;
+    int getDailyTaskCount(const std::string& date) const;
+    int getTotalPomodoroCount() const;
     
-private:
-    // ID生成器
-    int generateAchievementId();
-    int nextAchievementId = 1;
+    // 设置用户ID
+    void setCurrentUserId(int userId);
+    int getCurrentUserId() const;
 };
