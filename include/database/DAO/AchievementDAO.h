@@ -2,8 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include <unordered_map>
-#include "common/entities.h"  // 使用统一的实体定义
+#include "common/entities.h"
 
 class AchievementDAO {
 private:
@@ -11,13 +10,14 @@ private:
     
     // 内部数据存储
     std::vector<Achievement> achievementDefinitions;
-    std::vector<Achievement> userAchievements;  // 使用统一的Achievement实体
+    std::vector<Achievement> userAchievements;
     
     // 文件操作
-    bool loadFromFile();
-    bool saveToFile();
     std::string getDefinitionFilePath() const;
     std::string getUserAchievementFilePath(int userId) const;
+    bool fileExists(const std::string& filename) const;
+    std::string readFile(const std::string& filename) const;
+    bool writeFile(const std::string& filename, const std::string& content);
 
 public:
     AchievementDAO();
@@ -25,6 +25,7 @@ public:
     
     // 成就定义管理
     bool loadAchievementDefinitions();
+    bool saveAchievementDefinitions();
     std::vector<Achievement> getAllAchievementDefinitions() const;
     Achievement getAchievementDefinition(const std::string& achievementName) const;
     Achievement getAchievementDefinitionById(int achievementId) const;
@@ -59,7 +60,5 @@ public:
 private:
     // ID生成器
     int generateAchievementId();
-    int generateUserAchievementId();
     int nextAchievementId = 1;
-    int nextUserAchievementId = 1;
 };
