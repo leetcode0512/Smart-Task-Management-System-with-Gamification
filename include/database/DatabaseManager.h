@@ -11,13 +11,12 @@
 #include <sqlite3.h>
 
 // 前置声明
-class Experience;
+class HeatmapVisualizer;
+class Pomodoro;
 class Achievement;
-class HearmapVosualizer;  
 class Project;
-class Seetings;
 class Reminder;
-class Statistics;   
+class Statistics;    
 class Task;
 
 // SQLite 删除器
@@ -52,7 +51,7 @@ private:
     bool createAchievementTable();
     bool createUserStatsTable();
     bool createUserSettingsTable();
-    bool createHeatmapVisualizerTable();  // 
+    bool createPomodoroTable();  // ✅ 新增：Pomodoro表
     
     // 清理预编译语句
     void cleanupPreparedStatements();
@@ -111,7 +110,7 @@ public:
     // 性能统计
     long getTotalQueryCount() const;
     long getFailedQueryCount() const;
-    double getSuccessRate() const;  // ✅ 新增：成功率
+    double getSuccessRate() const;  
     void resetStatistics();
     
     // 获取原始连接（谨慎使用）
@@ -125,4 +124,3 @@ public:
 };
 
 #endif // DATABASE_MANAGER_H
-
