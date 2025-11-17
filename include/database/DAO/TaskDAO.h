@@ -4,7 +4,7 @@
 #include <vector>
 #include <optional>
 #include <string>
-#include "task.h"
+#include "task/task.h"
 
 class TaskDAO {
 public:
@@ -73,3 +73,4 @@ public:
 };
 
 #endif // TASKDAO_H
+
