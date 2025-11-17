@@ -1,67 +1,81 @@
-#ifndef TASK_DAO_H
-#define TASK_DAO_H
+#ifndef TASKDAO_H
+#define TASKDAO_H
 
 #include "common/entities.h"
 #include <vector>
 #include <optional>
 #include <map>
 #include <chrono>
+#include <vector>
+#include <optional>
+#include <string>
+#include "task/task.h"
 
 class TaskDAO {
 public:
     virtual ~TaskDAO() = default;
     
-    // 基础CRUD操作
-    virtual bool insertTask(Task& task) = 0;
+    // 表管理
+    virtual bool createTable() = 0;
+    
+    // CRUD 操作
+    virtual int insertTask(const Task& task) = 0;
+    virtual std::optional<Task> getTaskById(int id) = 0;
+    virtual std::vector<Task> getAllTasks() = 0;
     virtual bool updateTask(const Task& task) = 0;
-    virtual bool deleteTask(int taskId) = 0;
-    virtual bool softDeleteTask(int taskId) = 0;
+    virtual bool deleteTask(int id) = 0;
     
     // 查询操作
-    virtual std::optional<Task> getTaskById(int taskId) = 0;
-    virtual std::vector<Task> getAllTasks() = 0;
-    virtual std::vector<Task> getTasksByStatus(TaskStatus status) = 0;
-    virtual std::vector<Task> getTasksByPriority(Priority priority) = 0;
-    virtual std::vector<Task> getTasksByDueDateRange(
-        const std::chrono::system_clock::time_point& start,
-        const std::chrono::system_clock::time_point& end) = 0;
-    virtual std::vector<Task> getOverdueTasks() = 0;
-    virtual std::vector<Task> getTasksDueToday() = 0;
-    virtual std::vector<Task> getTasksDueThisWeek() = 0;
-    
-    // 高级查询
+    virtual std::vector<Task> getTasksByStatus(bool completed) = 0;
     virtual std::vector<Task> getTasksByProject(int projectId) = 0;
-    virtual std::vector<Task> getTasksByTag(const std::string& tag) = 0;
-    virtual std::vector<Task> searchTasks(const std::string& keyword) = 0;
-    virtual std::vector<Task> getTasksWithPomodoroSessions(int minSessions = 1) = 0;
+    virtual std::vector<Task> getOverdueTasks() = 0;
+    virtual std::vector<Task> getTodayTasks() = 0;
     
-    // 批量操作
-    virtual bool updateTasksStatus(const std::vector<int>& taskIds, TaskStatus status) = 0;
-    virtual bool updateTasksPriority(const std::vector<int>& taskIds, Priority priority) = 0;
-    virtual bool deleteCompletedTasks() = 0;
+    // 统计操作
+    virtual int countAllTasks() = 0;
+    virtual int countCompletedTasks() = 0;
     
-    // 统计查询
-    virtual int getTaskCountByStatus(TaskStatus status) = 0;
-    virtual int getTaskCountByPriority(Priority priority) = 0;
-    virtual int getCompletedTaskCountToday() = 0;
-    virtual int getCompletedTaskCountThisWeek() = 0;
-    virtual double getAverageCompletionTime() = 0;
+    // 项目分配
+    virtual bool assignTaskToProject(int taskId, int projectId) = 0;
     
-    // Pomodoro相关
-    virtual bool incrementPomodoroCount(int taskId) = 0;
-    virtual bool setPomodoroCount(int taskId, int count) = 0;
-    virtual int getTotalPomodoroCount() = 0;
-    
-    // 标签管理
-    virtual bool addTagToTask(int taskId, const std::string& tag) = 0;
-    virtual bool removeTagFromTask(int taskId, const std::string& tag) = 0;
-    virtual std::vector<std::string> getTagsForTask(int taskId) = 0;
-    virtual std::vector<std::string> getAllUniqueTags() = 0;
-    
-    // 数据验证
-    virtual bool taskExists(int taskId) = 0;
-    virtual bool isTaskTitleUnique(const std::string& title) = 0;
+    // 番茄钟
+    virtual bool incrementPomodoro(int taskId) = 0;
+    virtual int getPomodoroCount(int taskId) = 0;
 };
 
-#endif // TASK_DAO_H
+// SQLite具体实现类
+class TaskDAOImpl : public TaskDAO {
+private:
+    std::string databasePath;
+    
+    // 数据库连接辅助方法
+    sqlite3* getDatabaseConnection();
+    bool executeSQL(const std::string& sql);
+    
+public:
+    TaskDAOImpl(const std::string& dbPath = "tasks.db");
+    virtual ~TaskDAOImpl() = default;
+    
+    bool createTable() override;
+    int insertTask(const Task& task) override;
+    std::optional<Task> getTaskById(int id) override;
+    std::vector<Task> getAllTasks() override;
+    bool updateTask(const Task& task) override;
+    bool deleteTask(int id) override;
+    
+    std::vector<Task> getTasksByStatus(bool completed) override;
+    std::vector<Task> getTasksByProject(int projectId) override;
+    std::vector<Task> getOverdueTasks() override;
+    std::vector<Task> getTodayTasks() override;
+    
+    int countAllTasks() override;
+    int countCompletedTasks() override;
+    
+    bool assignTaskToProject(int taskId, int projectId) override;
+    
+    bool incrementPomodoro(int taskId) override;
+    int getPomodoroCount(int taskId) override;
+};
+
+#endif // TASKDAO_H
 
