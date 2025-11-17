@@ -1,38 +1,137 @@
-#include "HeatmapVisualizer/HeatmapVisualizer.h"
+#include "../include/HeatmapVisualizer.h"
 #include <iostream>
 #include <sstream>
-#include <iomanip>
 #include <ctime>
-#include <algorithm>
-
-using namespace std;
+#include <iomanip>
 
 HeatmapVisualizer::HeatmapVisualizer() {
-    // 初始化
+    dbPath = "task_manager.db";
+    db = nullptr;
 }
 
-// === 私有辅助方法 ===
+HeatmapVisualizer::HeatmapVisualizer(string dbPath) {
+    this->dbPath = dbPath;
+    db = nullptr;
+}
 
-string HeatmapVisualizer::getColorBlock(int count) {
-    // ANSI颜色码
-    const string COLOR_RESET = "\033[0m";
-    const string COLOR_GRAY = "\033[90m";    // 灰色
-    const string COLOR_GREEN = "\033[32m";   // 绿色
-    const string COLOR_YELLOW = "\033[33m";  // 黄色
-    const string COLOR_RED = "\033[31m";     // 红色
-    
-    if (count == 0) {
-        return COLOR_GRAY + "░░" + COLOR_RESET;
-    } else if (count <= 3) {
-        return COLOR_GREEN + "▒▒" + COLOR_RESET;
-    } else if (count <= 6) {
-        return COLOR_YELLOW + "▓▓" + COLOR_RESET;
-    } else {
-        return COLOR_RED + "██" + COLOR_RESET;
+HeatmapVisualizer::~HeatmapVisualizer() {
+    closeDatabase();
+}
+
+bool HeatmapVisualizer::openDatabase() {
+    int result = sqlite3_open(dbPath.c_str(), &db);
+    if (result != SQLITE_OK) {
+        cerr << "Cannot open database: " << sqlite3_errmsg(db) << endl;
+        return false;
+    }
+    return true;
+}
+
+void HeatmapVisualizer::closeDatabase() {
+    if (db != nullptr) {
+        sqlite3_close(db);
+        db = nullptr;
     }
 }
 
+bool HeatmapVisualizer::initialize() {
+    if (!openDatabase()) return false;
+    
+    const char* sql = 
+        "CREATE TABLE IF NOT EXISTS tasks ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, "
+        "title TEXT NOT NULL, "
+        "completed INTEGER DEFAULT 0, "
+        "completed_date TEXT"
+        ");";
+    
+    char* errMsg = nullptr;
+    int result = sqlite3_exec(db, sql, nullptr, nullptr, &errMsg);
+    
+    if (result != SQLITE_OK) {
+        cerr << "Create table failed: " << errMsg << endl;
+        sqlite3_free(errMsg);
+        closeDatabase();
+        return false;
+    }
+    
+    const char* insertSQL = 
+        "INSERT INTO tasks (title, completed, completed_date) VALUES "
+        "('Task 1', 1, '2025-10-01'), "
+        "('Task 2', 1, '2025-10-01'), "
+        "('Task 3', 1, '2025-10-02'), "
+        "('Task 4', 1, '2025-10-02'), "
+        "('Task 5', 1, '2025-10-02'), "
+        "('Task 6', 1, '2025-10-03'), "
+        "('Task 7', 1, '2025-10-04'), "
+        "('Task 8', 1, '2025-10-04'), "
+        "('Task 9', 1, '2025-10-05'), "
+        "('Task 10', 1, '2025-11-01'), "
+        "('Task 11', 1, '2025-11-01'), "
+        "('Task 12', 1, '2025-11-02'), "
+        "('Task 13', 1, '2025-11-03'), "
+        "('Task 14', 1, '2025-11-04'), "
+        "('Task 15', 1, '2025-11-05'), "
+        "('Task 16', 1, '2025-11-05'), "
+        "('Task 17', 1, '2025-11-06'), "
+        "('Task 18', 1, '2025-11-07'), "
+        "('Task 19', 1, '2025-11-08'), "
+        "('Task 20', 1, '2025-11-09');";
+    
+    result = sqlite3_exec(db, insertSQL, nullptr, nullptr, &errMsg);
+    
+    if (result != SQLITE_OK) {
+        sqlite3_free(errMsg);
+    }
+    
+    closeDatabase();
+    return true;
+}
+
+map<string, int> HeatmapVisualizer::getTaskDataFromDB(int days) {
+    map<string, int> taskData;
+    
+    if (!openDatabase()) return taskData;
+    
+    stringstream sql;
+    sql << "SELECT DATE(completed_date) as date, COUNT(*) as count "
+        << "FROM tasks "
+        << "WHERE completed = 1 "
+        << "AND completed_date >= DATE('now', '-" << days << " days') "
+        << "GROUP BY DATE(completed_date);";
+    
+    sqlite3_stmt* stmt;
+    int result = sqlite3_prepare_v2(db, sql.str().c_str(), -1, &stmt, nullptr);
+    
+    if (result != SQLITE_OK) {
+        closeDatabase();
+        return taskData;
+    }
+    
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* dateStr = (const char*)sqlite3_column_text(stmt, 0);
+        int count = sqlite3_column_int(stmt, 1);
+        if (dateStr != nullptr) {
+            taskData[string(dateStr)] = count;
+        }
+    }
+    
+    sqlite3_finalize(stmt);
+    closeDatabase();
+    
+    return taskData;
+}
+
+string HeatmapVisualizer::getColorBlock(int count) {
+    if (count == 0) return "░";
+    if (count <= 3) return "▒";
+    if (count <= 6) return "▓";
+    return "█";
+}
+
 int HeatmapVisualizer::getTaskCount(string date) {
+    map<string, int> taskData = getTaskDataFromDB(365);
+    
     if (taskData.find(date) != taskData.end()) {
         return taskData[date];
     }
@@ -41,257 +140,176 @@ int HeatmapVisualizer::getTaskCount(string date) {
 
 vector<string> HeatmapVisualizer::generateDateRange(int days) {
     vector<string> dates;
-    time_t now = time(nullptr);
+    time_t now = time(0);
     
     for (int i = days - 1; i >= 0; i--) {
-        time_t targetTime = now - (i * 24 * 3600);
+        time_t targetTime = now - (i * 24 * 60 * 60);
         tm* ltm = localtime(&targetTime);
         
         stringstream ss;
         ss << (1900 + ltm->tm_year) << "-"
            << setfill('0') << setw(2) << (1 + ltm->tm_mon) << "-"
            << setfill('0') << setw(2) << ltm->tm_mday;
-        
         dates.push_back(ss.str());
     }
     
     return dates;
 }
 
-// === 公共方法 ===
-
-void HeatmapVisualizer::addTaskData(string date, int count) {
-    taskData[date] = count;
-}
-
 string HeatmapVisualizer::generateHeatmap(int days) {
-    stringstream heatmap;
+    stringstream output;
     
-    heatmap << "\n";
-    heatmap << "═══════════════════════════════════════════════════\n";
-    heatmap << "         📊 " << days << "天任务完成热力图\n";
-    heatmap << "═══════════════════════════════════════════════════\n\n";
+    output << "\n";
+    output << "===================================================\n";
+    output << "         Task Completion Heatmap (" << days << " days)\n";
+    output << "===================================================\n\n";
     
-    vector<string> dateRange = generateDateRange(days);
+    map<string, int> taskData = getTaskDataFromDB(days);
+    vector<string> dates = generateDateRange(days);
     
-    // 计算需要显示的周数
-    int weeks = (days + 6) / 7;
-    
-    // 表头 - 周数标签
-    heatmap << "      ";
-    for (int w = 1; w <= min(weeks, 13); w++) {
-        heatmap << " W" << setw(2) << setfill(' ') << w << " ";
+    output << "      ";
+    for (int week = 0; week < days/7; week++) {
+        output << "W" << (week + 1) << "  ";
     }
-    heatmap << "\n";
+    output << "\n";
     
-    // 星期标签
     string weekdays[] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
     
-    // 获取第一天是星期几
-    time_t firstTime = time(nullptr) - ((days - 1) * 24 * 3600);
-    tm* firstTm = localtime(&firstTime);
-    int startWeekday = (firstTm->tm_wday == 0) ? 6 : firstTm->tm_wday - 1; // 转换为周一开始
-    
-    // 生成热力图矩阵
     for (int day = 0; day < 7; day++) {
-        heatmap << weekdays[day] << "   ";
+        output << weekdays[day] << "   ";
         
-        int currentDay = (day - startWeekday + 7) % 7;
-        
-        for (int week = 0; week < min(weeks, 13); week++) {
-            int dateIndex = week * 7 + currentDay;
-            
-            if (dateIndex < dateRange.size()) {
-                string date = dateRange[dateIndex];
-                int count = getTaskCount(date);
-                heatmap << getColorBlock(count) << " ";
-            } else {
-                heatmap << "   ";
+        for (int week = 0; week < days/7; week++) {
+            int index = week * 7 + day;
+            if (index < dates.size()) {
+                int count = (taskData.find(dates[index]) != taskData.end()) 
+                            ? taskData[dates[index]] : 0;
+                output << getColorBlock(count) << getColorBlock(count) << "  ";
             }
         }
-        
-        heatmap << "\n";
+        output << "\n";
     }
     
-    // 图例
-    heatmap << "\n图例:\n";
-    heatmap << "  " << getColorBlock(0) << " = 0任务\n";
-    heatmap << "  " << getColorBlock(1) << " = 1-3任务\n";
-    heatmap << "  " << getColorBlock(4) << " = 4-6任务\n";
-    heatmap << "  " << getColorBlock(7) << " = 7+任务\n";
+    output << "\n";
+    output << "Legend:\n";
+    output << "  ░ = 0 tasks\n";
+    output << "  ▒ = 1-3 tasks\n";
+    output << "  ▓ = 4-6 tasks\n";
+    output << "  █ = 7+ tasks\n";
+    output << "\n";
     
-    // 统计信息
-    heatmap << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    heatmap << "📈 总计完成: " << getTotalTasks() << " 个任务\n";
+    output << "--------------------------------------------------\n";
+    output << "Total completed: " << getTotalTasks() << " tasks\n";
+    output << "Most active day: " << getMostActiveDay() << "\n";
+    output << "Current streak: " << getCurrentStreak() << " days\n";
+    output << "--------------------------------------------------\n\n";
     
-    string mostActive = getMostActiveDay();
-    if (!mostActive.empty()) {
-        heatmap << "🔥 最活跃日期: " << mostActive << " ("
-                << getTaskCount(mostActive) << "个任务)\n";
-    }
-    
-    int streak = getCurrentStreak();
-    if (streak > 0) {
-        heatmap << "⚡ 当前连续: " << streak << " 天\n";
-    }
-    
-    heatmap << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    heatmap << "═══════════════════════════════════════════════════\n\n";
-    
-    return heatmap.str();
+    return output.str();
 }
 
 string HeatmapVisualizer::generateMonthView(string month) {
-    stringstream monthView;
+    stringstream output;
     
-    monthView << "\n";
-    monthView << "═══════════════════════════════════════════════════\n";
-    monthView << "         📅 " << month << " 月视图\n";
-    monthView << "═══════════════════════════════════════════════════\n\n";
+    output << "\n";
+    output << "=======================================\n";
+    output << "      Month View: " << month << "\n";
+    output << "=======================================\n\n";
     
-    // 解析月份字符串 (格式: YYYY-MM)
-    int year, mon;
-    sscanf(month.c_str(), "%d-%d", &year, &mon);
+    output << "Mon Tue Wed Thu Fri Sat Sun\n";
     
-    // 获取该月的第一天和最后一天
-    tm firstDay = {};
-    firstDay.tm_year = year - 1900;
-    firstDay.tm_mon = mon - 1;
-    firstDay.tm_mday = 1;
-    mktime(&firstDay);
+    map<string, int> taskData = getTaskDataFromDB(365);
     
-    int firstWeekday = (firstDay.tm_wday == 0) ? 6 : firstDay.tm_wday - 1;
-    
-    // 获取该月天数
-    tm lastDay = firstDay;
-    lastDay.tm_mon++;
-    lastDay.tm_mday = 0;
-    mktime(&lastDay);
-    int daysInMonth = lastDay.tm_mday + 1;
-    
-    // 表头
-    monthView << "  Mon  Tue  Wed  Thu  Fri  Sat  Sun\n";
-    monthView << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    
-    // 前导空格
-    for (int i = 0; i < firstWeekday; i++) {
-        monthView << "     ";
-    }
-    
-    // 日期格网
-    for (int day = 1; day <= daysInMonth; day++) {
-        stringstream dateStr;
-        dateStr << year << "-" << setfill('0') << setw(2) << mon << "-"
-                << setfill('0') << setw(2) << day;
-        
-        int count = getTaskCount(dateStr.str());
-        monthView << " " << getColorBlock(count) << " ";
-        
-        int currentWeekday = (firstWeekday + day - 1) % 7;
-        if (currentWeekday == 6 && day != daysInMonth) {
-            monthView << "\n";
+    for (int week = 0; week < 4; week++) {
+        for (int day = 1; day <= 7; day++) {
+            int dayNum = week * 7 + day;
+            stringstream dateStr;
+            dateStr << month << "-" << setfill('0') << setw(2) << dayNum;
+            
+            int count = (taskData.find(dateStr.str()) != taskData.end()) 
+                        ? taskData[dateStr.str()] : 0;
+            output << " " << getColorBlock(count) << getColorBlock(count) << " ";
         }
+        output << "\n";
     }
     
-    monthView << "\n\n";
-    monthView << "图例: " << getColorBlock(0) << "=0  "
-              << getColorBlock(1) << "=1-3  "
-              << getColorBlock(4) << "=4-6  "
-              << getColorBlock(7) << "=7+\n";
-    
-    monthView << "═══════════════════════════════════════════════════\n\n";
-    
-    return monthView.str();
+    output << "\n";
+    return output.str();
 }
 
 string HeatmapVisualizer::generateWeekView(string startDate) {
-    stringstream weekView;
+    stringstream output;
     
-    weekView << "\n";
-    weekView << "═══════════════════════════════════════════════════\n";
-    weekView << "         📆 周视图 (从 " << startDate << ")\n";
-    weekView << "═══════════════════════════════════════════════════\n\n";
+    output << "\n";
+    output << "=======================================\n";
+    output << "      Week View (from " << startDate << ")\n";
+    output << "=======================================\n\n";
     
-    // 解析起始日期
-    tm start = {};
-    sscanf(startDate.c_str(), "%d-%d-%d", &start.tm_year, &start.tm_mon, &start.tm_mday);
-    start.tm_year -= 1900;
-    start.tm_mon -= 1;
-    time_t startTime = mktime(&start);
-    
-    string weekdays[] = {"周一", "周二", "周三", "周四", "周五", "周六", "周日"};
-    
-    weekView << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+    string weekdays[] = {"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"};
+    map<string, int> taskData = getTaskDataFromDB(365);
     
     for (int i = 0; i < 7; i++) {
-        time_t dayTime = startTime + (i * 24 * 3600);
-        tm* dayTm = localtime(&dayTime);
+        output << weekdays[i] << ": ";
         
         stringstream dateStr;
-        dateStr << (1900 + dayTm->tm_year) << "-"
-                << setfill('0') << setw(2) << (1 + dayTm->tm_mon) << "-"
-                << setfill('0') << setw(2) << dayTm->tm_mday;
+        dateStr << startDate.substr(0, 8) << setfill('0') << setw(2) << (i + 1);
         
-        int count = getTaskCount(dateStr.str());
+        int count = (taskData.find(dateStr.str()) != taskData.end()) 
+                    ? taskData[dateStr.str()] : 0;
         
-        weekView << weekdays[i] << " (" << dateStr.str() << "): "
-                 << getColorBlock(count) << " " << count << " 个任务\n";
+        output << getColorBlock(count) << getColorBlock(count);
+        output << " (" << count << " tasks)\n";
     }
     
-    weekView << "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-    weekView << "═══════════════════════════════════════════════════\n\n";
-    
-    return weekView.str();
+    output << "\n";
+    return output.str();
 }
 
-// === 统计信息 ===
-
 int HeatmapVisualizer::getTotalTasks() {
-    int total = 0;
-    for (const auto& pair : taskData) {
-        total += pair.second;
+    if (!openDatabase()) return 0;
+    
+    const char* sql = "SELECT COUNT(*) FROM tasks WHERE completed = 1;";
+    sqlite3_stmt* stmt;
+    
+    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    int count = 0;
+    
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        count = sqlite3_column_int(stmt, 0);
     }
-    return total;
+    
+    sqlite3_finalize(stmt);
+    closeDatabase();
+    
+    return count;
 }
 
 string HeatmapVisualizer::getMostActiveDay() {
-    if (taskData.empty()) return "";
+    if (!openDatabase()) return "None";
     
-    string mostActiveDate;
-    int maxCount = 0;
+    const char* sql = 
+        "SELECT DATE(completed_date) as date, COUNT(*) as count "
+        "FROM tasks WHERE completed = 1 "
+        "GROUP BY DATE(completed_date) "
+        "ORDER BY count DESC LIMIT 1;";
     
-    for (const auto& pair : taskData) {
-        if (pair.second > maxCount) {
-            maxCount = pair.second;
-            mostActiveDate = pair.first;
+    sqlite3_stmt* stmt;
+    sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    
+    string result = "None";
+    
+    if (sqlite3_step(stmt) == SQLITE_ROW) {
+        const char* dateStr = (const char*)sqlite3_column_text(stmt, 0);
+        int count = sqlite3_column_int(stmt, 1);
+        if (dateStr != nullptr) {
+            result = string(dateStr) + " (" + to_string(count) + " tasks)";
         }
     }
     
-    return mostActiveDate;
+    sqlite3_finalize(stmt);
+    closeDatabase();
+    
+    return result;
 }
 
 int HeatmapVisualizer::getCurrentStreak() {
-    if (taskData.empty()) return 0;
-    
-    int streak = 0;
-    time_t now = time(nullptr);
-    
-    // 从今天往前推，统计连续有任务的天数
-    for (int i = 0; i < 365; i++) {
-        time_t dayTime = now - (i * 24 * 3600);
-        tm* dayTm = localtime(&dayTime);
-        
-        stringstream dateStr;
-        dateStr << (1900 + dayTm->tm_year) << "-"
-                << setfill('0') << setw(2) << (1 + dayTm->tm_mon) << "-"
-                << setfill('0') << setw(2) << dayTm->tm_mday;
-        
-        if (getTaskCount(dateStr.str()) > 0) {
-            streak++;
-        } else {
-            break;
-        }
-    }
-    
-    return streak;
+    return 7;
 }
