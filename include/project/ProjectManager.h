@@ -1,8 +1,8 @@
 #ifndef PROJECT_MANAGER_H
 #define PROJECT_MANAGER_H
 
-#include "entities/Project.h"
-#include "dao/ProjectDAO.h"
+#include "Project.h"
+#include "../database/DAO/ProjectDAO.h"
 #include <vector>
 #include <string>
 

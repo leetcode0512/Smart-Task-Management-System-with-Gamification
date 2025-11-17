@@ -58,11 +58,11 @@ bool initializeSystem() {
     
     // 1. 初始化数据库
     cout << "📦 [1/3] 初始化数据库..." << endl;
-    DatabaseManager* db = DatabaseManager::getInstance();
+    DatabaseManager& db = DatabaseManager::getInstance();
     
-    if (!db->initialize("task_manager.db")) {
+    if (!db.initialize("task_manager.db")) {
         cerr << "\033[1;31m❌ 数据库初始化失败！\033[0m" << endl;
-        cerr << "错误信息: " << db->getLastErrorMessage() << endl;
+        cerr << "错误信息: " << db.getLastErrorMessage() << endl;
         return false;
     }
     
@@ -78,7 +78,7 @@ bool initializeSystem() {
     };
     
     for (const string& table : requiredTables) {
-        if (!db->tableExists(table)) {
+        if (!db.tableExists(table)) {
             cerr << "\033[1;31m❌ 表 '" << table << "' 不存在\033[0m" << endl;
             allTablesExist = false;
         } else {
@@ -96,7 +96,7 @@ bool initializeSystem() {
     // 3. 检查数据库完整性
     cout << "🔒 [3/3] 检查数据库完整性..." << endl;
     
-    if (!db->checkDatabaseIntegrity()) {
+    if (!db.checkDatabaseIntegrity()) {
         cerr << "\033[1;31m❌ 数据库完整性检查失败！\033[0m" << endl;
         return false;
     }

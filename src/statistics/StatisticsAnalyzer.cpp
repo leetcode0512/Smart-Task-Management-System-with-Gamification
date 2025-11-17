@@ -6,7 +6,7 @@
 #include <sqlite3.h>
 
 StatisticsAnalyzer::StatisticsAnalyzer() {
-    dbManager = DatabaseManager::getInstance();
+    dbManager = &DatabaseManager::getInstance();
     if (!dbManager->isOpen()) {
         cerr << "⚠️  警告: 数据库未打开，StatisticsAnalyzer可能无法正常工作" << endl;
     }

@@ -1,7 +1,7 @@
 #ifndef PROJECT_DAO_H
 #define PROJECT_DAO_H
 
-#include "../entities/Project.h"
+#include "project/Project.h"
 #include <vector>
 #include <string>
 #include <sqlite3.h>

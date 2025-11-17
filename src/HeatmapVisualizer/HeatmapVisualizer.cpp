@@ -1,4 +1,4 @@
-#include "../include/HeatmapVisualizer.h"
+#include "HeatmapVisualizer/HeatmapVisualizer.h"
 #include <iostream>
 #include <sstream>
 #include <ctime>

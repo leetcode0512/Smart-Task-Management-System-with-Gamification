@@ -1,7 +1,7 @@
 #ifndef SETTINGS_DAO_H
 #define SETTINGS_DAO_H
 
-#include "commom/Entities.h"
+#include "entities.h"
 #include <map>
 #include <optional>
 

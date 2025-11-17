@@ -471,15 +471,7 @@ void UIManager::showHeatmap() {
     clearScreen();
     printHeader("🔥 任务完成热力图");
     
-    // 获取热力图数据
-    map<string, int> data = statsAnalyzer->getTaskCompletionData(90);
-    
-    // 添加数据到热力图
-    for (const auto& pair : data) {
-        heatmap->addTaskData(pair.first, pair.second);
-    }
-    
-    // 显示热力图
+    // 显示热力图（数据从数据库中获取）
     cout << heatmap->generateHeatmap(90);
     
     pause();

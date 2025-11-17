@@ -1,7 +1,7 @@
 #ifndef TASK_DAO_H
 #define TASK_DAO_H
 
-#include "common/Entities.h"
+#include "entities.h"
 #include <vector>
 #include <optional>
 #include <map>

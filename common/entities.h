@@ -1,9 +1,48 @@
-/common/entities.h
+// common/entities.h
 #ifndef ENTITIES_H
 #define ENTITIES_H
 
 #include <string>
 #include <vector>
+
+/**
+ * @brief 任务状态枚举
+ */
+enum class TaskStatus {
+    PENDING,        // 待处理
+    IN_PROGRESS,    // 进行中
+    COMPLETED,      // 已完成
+    CANCELLED       // 已取消
+};
+
+/**
+ * @brief 优先级枚举
+ */
+enum class Priority {
+    LOW = 0,        // 低优先级
+    MEDIUM = 1,     // 中优先级
+    HIGH = 2        // 高优先级
+};
+
+/**
+ * @brief 提醒类型枚举
+ */
+enum class ReminderType {
+    ONCE,           // 一次性提醒
+    DAILY,          // 每日提醒
+    WEEKLY,         // 每周提醒
+    MONTHLY         // 每月提醒
+};
+
+/**
+ * @brief 提醒状态枚举
+ */
+enum class ReminderStatus {
+    PENDING,        // 等待触发
+    TRIGGERED,      // 已触发
+    COMPLETED,      // 已完成
+    CANCELLED       // 已取消
+};
 
 /**
  * @brief 基础实体类，包含所有实体的通用字段
@@ -44,21 +83,10 @@ struct Task : BaseEntity {
  * @brief 项目实体 - 任务分组容器
  * 
  * 负责人: Zhou Tianjian (项目管理模块)
+ * 注意: Project类的完整定义在 include/project/Project.h
+ * 这里仅作为前向声明，避免循环依赖
  */
-struct Project : BaseEntity {
-    std::string name;                    // 项目名称
-    std::string description;             // 项目描述
-    std::string color_label;             // 颜色标签 (#RRGGBB格式)
-    double progress = 0.0;               // 进度百分比 (0.0 - 1.0)
-    int total_tasks = 0;                 // 总任务数
-    int completed_tasks = 0;             // 已完成任务数
-    std::string target_date;             // 目标完成日期
-    bool archived = false;               // 是否已归档
-    
-    Project() = default;
-    Project(const std::string& n, const std::string& desc = "") 
-        : name(n), description(desc) {}
-};
+class Project;
 
 /**
  * @brief 挑战实体 - 游戏化功能核心
@@ -162,6 +190,103 @@ struct UserSettings : BaseEntity {
     bool auto_start_pomodoros = false;   // 是否自动开始番茄钟
     
     UserSettings() = default;
+};
+
+/**
+ * @brief 用户等级信息 - 游戏化系统
+ */
+struct UserLevelInfo {
+    int userId = 0;
+    int currentLevel = 1;
+    int totalXP = 0;
+    int xpForCurrentLevel = 0;
+    int xpForNextLevel = 100;
+    double progressToNextLevel = 0.0;
+};
+
+/**
+ * @brief 等级定义 - 游戏化系统
+ */
+struct LevelDefinition {
+    int level = 1;
+    int requiredXP = 0;
+    std::string title;
+    std::string description;
+};
+
+/**
+ * @brief 经验值记录 - 游戏化系统
+ */
+struct ExperienceRecord {
+    int id = 0;
+    int userId = 0;
+    int amount = 0;
+    std::string source;
+    std::string description;
+    std::string timestamp;
+};
+
+/**
+ * @brief 用户排名 - 游戏化系统
+ */
+struct UserRanking {
+    int rank = 0;
+    int userId = 0;
+    std::string username;
+    int totalXP = 0;
+    int level = 1;
+};
+
+/**
+ * @brief 每日完成统计 - 统计系统
+ */
+struct DailyCompletionStats {
+    std::string date;
+    int tasksCompleted = 0;
+    int tasksCreated = 0;
+    double completionRate = 0.0;
+    int pomodorosCompleted = 0;
+};
+
+/**
+ * @brief 热力图数据 - 可视化系统
+ */
+struct HeatmapData {
+    std::string date;
+    int taskCount = 0;
+};
+
+/**
+ * @brief 生产力报告 - 统计系统
+ */
+struct ProductivityReport {
+    std::string startDate;
+    std::string endDate;
+    int totalTasks = 0;
+    int completedTasks = 0;
+    double completionRate = 0.0;
+    double averageTasksPerDay = 0.0;
+};
+
+/**
+ * @brief 番茄钟统计 - 统计系统
+ */
+struct PomodoroStatistics {
+    int totalPomodoros = 0;
+    int pomodorosToday = 0;
+    int pomodorosThisWeek = 0;
+    double averagePomodorosPerDay = 0.0;
+};
+
+/**
+ * @brief 连续记录 - 统计系统
+ */
+struct StreakRecord {
+    int id = 0;
+    std::string startDate;
+    std::string endDate;
+    int durationDays = 0;
+    bool isActive = false;
 };
 
 #endif // ENTITIES_H

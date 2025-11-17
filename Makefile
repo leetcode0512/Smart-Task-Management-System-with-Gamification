@@ -13,6 +13,7 @@ BIN_DIR = bin
 # Source files
 SRCS = $(SRC_DIR)/main.cpp \
        $(SRC_DIR)/database/databasemanager.cpp \
+       $(SRC_DIR)/database/DAO/ProjectDAO.cpp \
        $(SRC_DIR)/project/Project.cpp \
        $(SRC_DIR)/project/ProjectManager.cpp \
        $(SRC_DIR)/statistics/StatisticsAnalyzer.cpp \
@@ -34,6 +35,7 @@ all: directories $(TARGET)
 directories:
 	@mkdir -p $(BUILD_DIR)
 	@mkdir -p $(BUILD_DIR)/database
+	@mkdir -p $(BUILD_DIR)/database/DAO
 	@mkdir -p $(BUILD_DIR)/project
 	@mkdir -p $(BUILD_DIR)/reminder
 	@mkdir -p $(BUILD_DIR)/statistics
