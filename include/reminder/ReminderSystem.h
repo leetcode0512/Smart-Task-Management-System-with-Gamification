@@ -4,17 +4,14 @@
 #include <chrono>
 #include <memory>
 #include "../database/DAO/ReminderDAO.h"  // 包含队友的DAO头文件
-
-// 注意：现在使用 Entities.h 中的 Reminder 结构体，不需要重复定义
-// 假设 Entities.h 中已经有 Reminder 的定义
+#include "Entities.h"  // 包含实体定义
 
 class ReminderSystem {
 private:
     std::vector<Reminder> reminders;
-    std::unique_ptr<ReminderDAO> reminderDAO;  // 使用智能指针管理DAO
+    std::unique_ptr<ReminderDAO> reminderDAO;
     
 public:
-    // 构造函数现在接收 ReminderDAO
     ReminderSystem(std::unique_ptr<ReminderDAO> dao);
     
     // 核心方法
@@ -38,12 +35,10 @@ public:
     std::string formatTime(std::time_t time) const;
     std::chrono::system_clock::time_point stringToTimePoint(const std::string& timeStr) const;
     
-    // 新增方法：获取不同类型的提醒
+    // 新增方法
     std::vector<Reminder> getActiveReminders();
     std::vector<Reminder> getRemindersByTask(int taskId);
     std::vector<Reminder> getDueRemindersForToday();
-    
-    // 状态管理方法
     bool markReminderAsTriggered(int reminderId);
     bool rescheduleReminder(int reminderId, const std::string& newTime);
 };
