@@ -3,6 +3,9 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <chrono>
+#include <thread>
+#include <atomic>
 
 // 构造函数接收 ReminderDAO
 ReminderSystem::ReminderSystem(std::unique_ptr<ReminderDAO> dao) 
@@ -51,18 +54,13 @@ void ReminderSystem::checkDueReminders() {
         int triggeredCount = 0;
         
         for (auto& reminder : dueReminders) {
-            // 触发提醒
-            std::cout << "🔔 提醒: " << reminder.title << "\n";
-            std::cout << "   " << reminder.message << "\n";
-            if (reminder.task_id > 0) {
-                std::cout << "   关联任务ID: " << reminder.task_id << "\n";
-            }
-            std::cout << "   触发时间: " << reminder.trigger_time << "\n\n";
-            
+            // 统一使用 notifyUser 通知 UI / 用户
+            notifyUser(reminder);
+
             // 标记为已触发
             if (markReminderAsTriggered(reminder.id)) {
                 triggeredCount++;
-                
+
                 // 处理重复提醒
                 if (reminder.recurrence != "once") {
                     processRecurringReminder(reminder);
@@ -117,20 +115,46 @@ void ReminderSystem::processRecurringReminder(const Reminder& reminder) {
 }
 
 std::string ReminderSystem::calculateNextTriggerTime(const Reminder& reminder) const {
-    std::time_t currentTime = parseTimeString(reminder.trigger_time);
-    if (currentTime == -1) return "";
-    
-    std::time_t nextTime = currentTime;
-    
+    // 将字符串规则映射到枚举类型 ReminderType
+    ReminderType type = ReminderType::ONCE;
     if (reminder.recurrence == "daily") {
-        nextTime += 24 * 60 * 60; // 增加1天
+        type = ReminderType::DAILY;
     } else if (reminder.recurrence == "weekly") {
-        nextTime += 7 * 24 * 60 * 60; // 增加1周
+        type = ReminderType::WEEKLY;
     } else if (reminder.recurrence == "monthly") {
-        // 简单实现：增加30天
-        nextTime += 30 * 24 * 60 * 60;
+        type = ReminderType::MONTHLY;
     }
-    
+
+    return calculateNextReminderTime(reminder.trigger_time, type);
+}
+
+std::string ReminderSystem::calculateNextReminderTime(
+    const std::string& currentTime,
+    ReminderType type) const {
+    std::time_t baseTime = parseTimeString(currentTime);
+    if (baseTime == -1) {
+        return "";
+    }
+
+    std::time_t nextTime = baseTime;
+
+    switch (type) {
+    case ReminderType::DAILY:
+        nextTime += 24 * 60 * 60; // 增加1天
+        break;
+    case ReminderType::WEEKLY:
+        nextTime += 7 * 24 * 60 * 60; // 增加1周
+        break;
+    case ReminderType::MONTHLY:
+        // 简单实现：增加30天，如果需要更精确，可以在这里改成年月日计算
+        nextTime += 30 * 24 * 60 * 60;
+        break;
+    case ReminderType::ONCE:
+    default:
+        // 一次性或未知类型，不移动时间，直接返回原时间
+        break;
+    }
+
     return formatTime(nextTime);
 }
 
@@ -248,6 +272,16 @@ bool ReminderSystem::rescheduleReminder(int reminderId, const std::string& newTi
     return false;
 }
 
+void ReminderSystem::notifyUser(const Reminder& reminder) {
+    // TODO: 将这里替换为实际 UI 通知逻辑（例如发信号、调用回调等）
+    std::cout << "🔔 提醒: " << reminder.title << "\n";
+    std::cout << "   " << reminder.message << "\n";
+    if (reminder.task_id > 0) {
+        std::cout << "   关联任务ID: " << reminder.task_id << "\n";
+    }
+    std::cout << "   触发时间: " << reminder.trigger_time << "\n\n";
+}
+
 // 时间工具方法
 std::string ReminderSystem::getCurrentTime() const {
     auto now = std::chrono::system_clock::now();
@@ -278,4 +312,62 @@ std::chrono::system_clock::time_point ReminderSystem::stringToTimePoint(const st
         return std::chrono::system_clock::time_point{};
     }
     return std::chrono::system_clock::from_time_t(time);
+}
+
+// ==================== ReminderDaemon 实现 ====================
+
+ReminderDaemon::ReminderDaemon(ReminderSystem& system)
+    : reminderSystem(system) {}
+
+ReminderDaemon::~ReminderDaemon() {
+    // 停止后台线程
+    running = false;
+    if (worker.joinable()) {
+        worker.join();
+    }
+}
+
+void ReminderDaemon::runLoop() {
+    using namespace std::chrono_literals;
+
+    while (running.load()) {
+        // 定期检查待触发提醒
+        checkPendingReminders();
+
+        // 根据业务场景调整检查频率，例如每 30 秒检查一次
+        std::this_thread::sleep_for(30s);
+    }
+}
+
+void ReminderDaemon::startChecking() {
+    if (running.load()) {
+        // 已经在运行，避免重复启动
+        return;
+    }
+
+    running = true;
+    worker = std::thread(&ReminderDaemon::runLoop, this);
+}
+
+void ReminderDaemon::checkPendingReminders() {
+    reminderSystem.checkDueReminders();
+}
+
+void ReminderDaemon::triggerReminder(int reminderId) {
+    // 从业务角度看，这里可以理解为“手动立即触发某个提醒”
+    auto activeReminders = reminderSystem.getActiveReminders();
+    for (auto& reminder : activeReminders) {
+        if (reminder.id == reminderId) {
+            // 触发通知
+            reminderSystem.notifyUser(reminder);
+
+            // 标记为已触发并处理重复逻辑
+            if (reminderSystem.markReminderAsTriggered(reminder.id)) {
+                if (reminder.recurrence != "once") {
+                    reminderSystem.processRecurringReminder(reminder);
+                }
+            }
+            break;
+        }
+    }
 }
