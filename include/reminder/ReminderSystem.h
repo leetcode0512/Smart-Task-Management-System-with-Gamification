@@ -3,6 +3,8 @@
 #include <string>
 #include <chrono>
 #include <memory>
+#include <thread>
+#include <atomic>
 #include "../database/DAO/ReminderDAO.h"  // 包含队友的DAO头文件
 #include "Entities.h"  // 包含实体定义
 
@@ -27,6 +29,10 @@ public:
     bool isReminderDue(const Reminder& reminder) const;
     void processRecurringReminder(const Reminder& reminder);
     std::string calculateNextTriggerTime(const Reminder& reminder) const;
+    // 重复提醒计算：根据当前时间和提醒类型计算下一次提醒时间
+    std::string calculateNextReminderTime(
+        const std::string& currentTime,
+        ReminderType type) const;
     bool loadRemindersFromDB();
     
     // 时间工具方法
@@ -41,4 +47,29 @@ public:
     std::vector<Reminder> getDueRemindersForToday();
     bool markReminderAsTriggered(int reminderId);
     bool rescheduleReminder(int reminderId, const std::string& newTime);
+    
+    // 当提醒触发时，通知UI显示
+    void notifyUser(const Reminder& reminder);
+};
+
+class ReminderDaemon {
+private:
+    ReminderSystem& reminderSystem;
+    std::thread worker;
+    std::atomic<bool> running{false};
+
+    void runLoop();  // 后台循环：定期调用checkPendingReminders
+
+public:
+    explicit ReminderDaemon(ReminderSystem& system);
+    ~ReminderDaemon();
+
+    // 启动定期检查
+    void startChecking();
+
+    // 检查待触发的提醒（供守护线程或手动调用）
+    void checkPendingReminders();
+
+    // 触发单个提醒
+    void triggerReminder(int reminderId);
 };
