@@ -60,7 +60,7 @@ void ReminderSystem::checkDueReminders() {
             std::cout << "   触发时间: " << reminder.trigger_time << "\n\n";
             
             // 标记为已触发
-            if (reminderDAO->markReminderAsTriggered(reminder.id)) {
+            if (markReminderAsTriggered(reminder.id)) {
                 triggeredCount++;
                 
                 // 处理重复提醒
