@@ -6,7 +6,7 @@
 #include <string>
 
 #include "task.h"
-#include "../database/DAO/TaskDAO.h"
+#include "database/DAO/TaskDAO.h"
 
 class TaskManager {
 private:
