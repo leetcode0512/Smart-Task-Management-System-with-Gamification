@@ -1,11 +1,6 @@
 #ifndef TASKDAO_H
 #define TASKDAO_H
-
-#include "common/entities.h"
-#include <vector>
-#include <optional>
-#include <map>
-#include <chrono>
+#include <sqlite3.h>
 #include <vector>
 #include <optional>
 #include <string>
@@ -78,4 +73,3 @@ public:
 };
 
 #endif // TASKDAO_H
-
