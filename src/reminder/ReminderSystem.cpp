@@ -95,17 +95,27 @@ bool ReminderSystem::isReminderDue(const Reminder& reminder) const {
 
 void ReminderSystem::processRecurringReminder(const Reminder& reminder) {
     std::string nextTime = calculateNextTriggerTime(reminder);
-    
+
+    if (nextTime.empty()) {
+        std::cerr << "无法计算下一次重复提醒时间，recurrence=" << reminder.recurrence << "\n";
+        return;
+    }
+
     // 创建新的提醒记录
     Reminder newReminder;
     newReminder.title = reminder.title;
     newReminder.message = reminder.message;
     newReminder.trigger_time = nextTime;
+    newReminder.triggerTime = stringToTimePoint(nextTime);
     newReminder.recurrence = reminder.recurrence;
+    newReminder.recurrenceRule = reminder.recurrence;
     newReminder.task_id = reminder.task_id;
+    newReminder.taskId = reminder.task_id;
     newReminder.enabled = true;
     newReminder.triggered = false;
-    
+    newReminder.type = reminder.type;
+    newReminder.status = ReminderStatus::PENDING;
+
     // 使用DAO保存新提醒
     if (reminderDAO->insertReminder(newReminder)) {
         std::cout << "已创建下一次提醒，时间: " << nextTime << "\n";
@@ -165,16 +175,29 @@ void ReminderSystem::addReminder(const std::string& title, const std::string& me
         std::cerr << "ReminderDAO 未初始化\n";
         return;
     }
-    
+
     Reminder newReminder;
     newReminder.title = title;
     newReminder.message = message;
     newReminder.trigger_time = time;
+    newReminder.triggerTime = stringToTimePoint(time);
     newReminder.recurrence = rule;
+    newReminder.recurrenceRule = rule;
+    newReminder.type = rule == "daily" ? ReminderType::DAILY
+        : rule == "weekly" ? ReminderType::WEEKLY
+        : rule == "monthly" ? ReminderType::MONTHLY
+        : ReminderType::ONCE;
+    newReminder.status = ReminderStatus::PENDING;
     newReminder.task_id = task_id;
+    newReminder.taskId = task_id;
     newReminder.enabled = true;
     newReminder.triggered = false;
-    
+
+    if (newReminder.triggerTime.time_since_epoch().count() == 0) {
+        std::cerr << "无效的提醒时间格式: " << time << "\n";
+        return;
+    }
+
     if (reminderDAO->insertReminder(newReminder)) {
         std::cout << "✅ 已添加提醒: " << title << " (时间: " << time << ", 重复: " << rule << ")\n";
         // 重新加载提醒列表以包含新提醒
@@ -267,6 +290,10 @@ bool ReminderSystem::markReminderAsTriggered(int reminderId) {
 bool ReminderSystem::rescheduleReminder(int reminderId, const std::string& newTime) {
     if (reminderDAO) {
         auto timePoint = stringToTimePoint(newTime);
+        if (timePoint.time_since_epoch().count() == 0) {
+            std::cerr << "无效的时间格式，无法重新安排提醒: " << newTime << "\n";
+            return false;
+        }
         return reminderDAO->rescheduleReminder(reminderId, timePoint);
     }
     return false;
