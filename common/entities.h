@@ -140,62 +140,22 @@ struct Reminder {
           recurrence(recurrence), triggered(false), task_id(task_id), enabled(true) {}
 };
 
-// 提醒类型枚举
-enum class ReminderType {
-    ONCE,
-    DAILY,
-    WEEKLY,
-    MONTHLY
-};
-
-// 提醒状态枚举
-enum class ReminderStatus {
-    PENDING,
-    TRIGGERED,
-    COMPLETED,
-    CANCELLED
-};
-
 /**
  * @brief 成就实体 - 用户成就系统
  * 
  * 负责人: Fei Yifan (成就系统)
  */
-// 成就定义实体
-struct AchievementDefinition {
-    std::string id;
-    std::string name;
-    std::string description;
-    std::string icon;
-    int target_value;
-    int reward_xp;
-    std::string category;
-    std::string unlock_condition;
-    
-    AchievementDefinition() : target_value(0), reward_xp(0) {}
-    
-    AchievementDefinition(const std::string& id, const std::string& name, 
-                         const std::string& description, int target_value, 
-                         const std::string& category, int reward_xp = 0)
-        : id(id), name(name), description(description), target_value(target_value),
-          category(category), reward_xp(reward_xp) {}
-};
-
-// 用户成就实体
-struct UserAchievement {
-    int id;
-    int user_id;
-    std::string achievement_id;
-    bool unlocked;
-    std::string unlocked_date;
-    int progress;
-    
-    UserAchievement() 
-        : id(0), user_id(0), unlocked(false), progress(0) {}
-        
-    UserAchievement(int user_id, const std::string& achievement_id)
-        : id(0), user_id(user_id), achievement_id(achievement_id), 
-          unlocked(false), progress(0) {}
+struct Achievement : BaseEntity {
+    std::string name;                 // 成就展示名称
+    std::string description;          // 成就描述
+    std::string icon;                 // 成就图标
+    std::string unlock_condition;     // 用于逻辑判断的唯一标识
+    bool unlocked = false;            // 是否已解锁
+    std::string unlocked_date;        // 解锁时间
+    int reward_xp = 0;                // 奖励XP
+    std::string category;             // 成就类别
+    int progress = 0;                 // 当前进度
+    int target_value = 0;             // 目标值
 };
 
 // 成就统计结构
