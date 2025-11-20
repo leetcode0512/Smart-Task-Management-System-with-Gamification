@@ -126,20 +126,55 @@ struct Reminder {
     std::string title;
     std::string message;
     std::string trigger_time;
+    std::chrono::system_clock::time_point triggerTime; // 精确时间点，便于数据库计算
+    ReminderType type;
+    ReminderStatus status;
     std::string recurrence; // "once", "daily", "weekly", "monthly"
+    std::string recurrenceRule;
     bool triggered;
     int task_id;
+    int taskId;
     bool enabled;
     std::string last_triggered;
-    
-    Reminder() 
-        : id(0), triggered(false), task_id(0), enabled(true) {}
-        
-    Reminder(int id, const std::string& title, const std::string& message, 
-             const std::string& trigger_time, const std::string& recurrence = "once", 
+
+    Reminder()
+        : id(0),
+          triggerTime(std::chrono::system_clock::now()),
+          type(ReminderType::ONCE),
+          status(ReminderStatus::PENDING),
+          triggered(false),
+          task_id(0),
+          taskId(0),
+          enabled(true) {
+        recurrenceRule = recurrence;
+    }
+
+    Reminder(int id, const std::string& title, const std::string& message,
+             const std::string& trigger_time, const std::string& recurrence = "once",
              int task_id = 0)
         : id(id), title(title), message(message), trigger_time(trigger_time),
-          recurrence(recurrence), triggered(false), task_id(task_id), enabled(true) {}
+          recurrence(recurrence), triggered(false), task_id(task_id), taskId(task_id),
+          enabled(true) {
+        // 将字符串时间解析为 time_point，便于 DAO 复用
+        std::tm tm = {};
+        std::istringstream ss(trigger_time);
+        ss >> std::get_time(&tm, "%Y-%m-%d %H:%M:%S");
+        std::time_t tt = ss.fail() ? std::time(nullptr) : std::mktime(&tm);
+        triggerTime = std::chrono::system_clock::from_time_t(tt);
+
+        if (recurrence == "daily") {
+            type = ReminderType::DAILY;
+        } else if (recurrence == "weekly") {
+            type = ReminderType::WEEKLY;
+        } else if (recurrence == "monthly") {
+            type = ReminderType::MONTHLY;
+        } else {
+            type = ReminderType::ONCE;
+        }
+
+        status = triggered ? ReminderStatus::TRIGGERED : ReminderStatus::PENDING;
+        recurrenceRule = recurrence;
+    }
 };
 
 /**
