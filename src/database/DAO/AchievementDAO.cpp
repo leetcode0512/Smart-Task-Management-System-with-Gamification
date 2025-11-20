@@ -1,4 +1,4 @@
-#include "AchievementDAO.h"
+#include "database/DAO/AchievementDAO.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
@@ -19,56 +19,63 @@ AchievementDAO::AchievementDAO(const std::string& basePath) : dataFilePath(baseP
     initializeDefaultAchievements();
 }
 
+std::string AchievementDAO::getDefinitionFilePath() const {
+    return dataFilePath + "achievement_definitions.csv";
+}
+
+std::string AchievementDAO::getUserAchievementFilePath(int userId) const {
+    return dataFilePath + "user_achievements_" + std::to_string(userId) + ".csv";
+}
+
+bool AchievementDAO::fileExists(const std::string& filename) const {
+    std::ifstream file(filename);
+    return file.good();
+}
+
+bool AchievementDAO::writeFile(const std::string& filename, const std::string& content) {
+    std::ofstream file(filename, std::ios::trunc);
+    if (!file.is_open()) {
+        return false;
+    }
+    file << content;
+    return true;
+}
+
 void AchievementDAO::initializeDefaultAchievements() {
+    // 如果已经有定义文件并且能加载成功，就不再初始化默认成就
     if (!loadAchievementDefinitions()) {
-        achievementDefinitions.push_back({
-            generateAchievementId(),
-            getCurrentTimestamp(),
-            getCurrentTimestamp(),
-            "首次任务",
-            "完成第一个任务",
-            "🎯",
-            "完成1个任务",
-            false,
-            "",
-            100,
-            "task",
-            0,
-            1
-        });
-        
-        achievementDefinitions.push_back({
-            generateAchievementId(),
-            getCurrentTimestamp(),
-            getCurrentTimestamp(),
-            "任务达人", 
-            "完成50个任务",
-            "⭐",
-            "完成50个任务",
-            false,
-            "",
-            500,
-            "task",
-            0,
-            50
-        });
-        
-        achievementDefinitions.push_back({
-            generateAchievementId(),
-            getCurrentTimestamp(),
-            getCurrentTimestamp(),
-            "七日连胜",
-            "连续7天完成任务", 
-            "🔥",
-            "连续7天有任务完成",
-            false,
-            "",
-            300,
-            "streak",
-            0,
-            7
-        });
-        
+        const std::string now = getCurrentTimestamp();
+
+        auto addDefinition = [&](const std::string& name,
+                                 const std::string& description,
+                                 const std::string& icon,
+                                 const std::string& unlockKey,
+                                 int rewardXP,
+                                 const std::string& category,
+                                 int targetValue) {
+            Achievement achievement;
+            achievement.id = generateAchievementId();
+            achievement.created_date = now;
+            achievement.updated_date = now;
+            achievement.name = name;
+            achievement.description = description;
+            achievement.icon = icon;
+            achievement.unlock_condition = unlockKey;
+            achievement.unlocked = false;
+            achievement.unlocked_date.clear();
+            achievement.reward_xp = rewardXP;
+            achievement.category = category;
+            achievement.progress = 0;
+            achievement.target_value = targetValue;
+            achievementDefinitions.push_back(achievement);
+        };
+
+        // 与新成就系统对应的默认成就
+        addDefinition("首次任务", "完成第一个任务", "🎯", "first_task", 100, "task", 1);
+        addDefinition("七日连胜", "连续完成7天任务", "🔥", "seven_day_streak", 300, "streak", 7);
+        addDefinition("时间管理达人", "单日完成10个任务", "⏱️", "time_management_master", 200, "time", 10);
+        addDefinition("番茄钟大师", "累计完成20个番茄钟", "🍅", "pomodoro_master", 250, "pomodoro", 20);
+
         saveAchievementDefinitions();
     }
 }
@@ -105,31 +112,27 @@ bool AchievementDAO::loadAchievementDefinitions() {
         getline(ss, progress_str, ',');
         getline(ss, target_value_str, ',');
         
-        try {
-            Achievement achievement;
-            achievement.id = stoi(id);
-            achievement.created_date = created_date;
-            achievement.updated_date = updated_date;
-            achievement.name = name;
-            achievement.description = description;
-            achievement.icon = icon;
-            achievement.unlock_condition = unlock_condition;
-            achievement.unlocked = (unlocked_str == "1");
-            achievement.unlocked_date = unlocked_date;
-            achievement.reward_xp = stoi(reward_xp_str);
-            achievement.category = category;
-            achievement.progress = stoi(progress_str);
-            achievement.target_value = stoi(target_value_str);
-            
-            achievementDefinitions.push_back(achievement);
-            nextAchievementId = max(nextAchievementId, achievement.id + 1);
-        } catch (const exception& e) {
-            cerr << "Error parsing achievement: " << e.what() << endl;
-        }
+        Achievement achievement;
+        achievement.id = stoi(id);
+        achievement.created_date = created_date;
+        achievement.updated_date = updated_date;
+        achievement.name = name;
+        achievement.description = description;
+        achievement.icon = icon;
+        achievement.unlock_condition = unlock_condition;
+        achievement.unlocked = (unlocked_str == "1");
+        achievement.unlocked_date = unlocked_date;
+        achievement.reward_xp = stoi(reward_xp_str);
+        achievement.category = category;
+        achievement.progress = stoi(progress_str);
+        achievement.target_value = stoi(target_value_str);
+        
+        achievementDefinitions.push_back(achievement);
+        nextAchievementId = std::max(nextAchievementId, achievement.id + 1);
     }
     
     file.close();
-    return !achievementDefinitions.empty();
+    return true;
 }
 
 bool AchievementDAO::saveAchievementDefinitions() {
@@ -138,7 +141,8 @@ bool AchievementDAO::saveAchievementDefinitions() {
         return false;
     }
     
-    file << "id,created_date,updated_date,name,description,icon,unlock_condition,unlocked,unlocked_date,reward_xp,category,progress,target_value\n";
+    file << "id,created_date,updated_date,name,description,icon,unlock_condition,"
+            "unlocked,unlocked_date,reward_xp,category,progress,target_value\n";
     
     for (const auto& achievement : achievementDefinitions) {
         file << achievement.id << ","
@@ -164,9 +168,9 @@ vector<Achievement> AchievementDAO::getAllAchievementDefinitions() const {
     return achievementDefinitions;
 }
 
-Achievement AchievementDAO::getAchievementDefinition(const string& achievementName) const {
+Achievement AchievementDAO::getAchievementDefinition(const string& achievementKey) const {
     for (const auto& achievement : achievementDefinitions) {
-        if (achievement.name == achievementName) {
+        if (achievement.unlock_condition == achievementKey) {
             return achievement;
         }
     }
@@ -205,26 +209,23 @@ bool AchievementDAO::loadUserAchievements(int userId) {
         getline(ss, progress_str, ',');
         getline(ss, target_value_str, ',');
         
-        try {
-            Achievement achievement;
-            achievement.id = stoi(id);
-            achievement.created_date = created_date;
-            achievement.updated_date = updated_date;
-            achievement.name = name;
-            achievement.description = description;
-            achievement.icon = icon;
-            achievement.unlock_condition = unlock_condition;
-            achievement.unlocked = (unlocked_str == "1");
-            achievement.unlocked_date = unlocked_date;
-            achievement.reward_xp = stoi(reward_xp_str);
-            achievement.category = category;
-            achievement.progress = stoi(progress_str);
-            achievement.target_value = stoi(target_value_str);
-            
-            userAchievements.push_back(achievement);
-        } catch (const exception& e) {
-            cerr << "Error parsing user achievement: " << e.what() << endl;
-        }
+        Achievement achievement;
+        achievement.id = stoi(id);
+        achievement.created_date = created_date;
+        achievement.updated_date = updated_date;
+        achievement.name = name;
+        achievement.description = description;
+        achievement.icon = icon;
+        achievement.unlock_condition = unlock_condition;
+        achievement.unlocked = (unlocked_str == "1");
+        achievement.unlocked_date = unlocked_date;
+        achievement.reward_xp = stoi(reward_xp_str);
+        achievement.category = category;
+        achievement.progress = stoi(progress_str);
+        achievement.target_value = stoi(target_value_str);
+        
+        userAchievements.push_back(achievement);
+        nextAchievementId = std::max(nextAchievementId, achievement.id + 1);
     }
     
     file.close();
@@ -237,7 +238,8 @@ bool AchievementDAO::saveUserAchievements(int userId) {
         return false;
     }
     
-    file << "id,created_date,updated_date,name,description,icon,unlock_condition,unlocked,unlocked_date,reward_xp,category,progress,target_value\n";
+    file << "id,created_date,updated_date,name,description,icon,unlock_condition,"
+            "unlocked,unlocked_date,reward_xp,category,progress,target_value\n";
     
     for (const auto& achievement : userAchievements) {
         file << achievement.id << ","
@@ -260,17 +262,19 @@ bool AchievementDAO::saveUserAchievements(int userId) {
 }
 
 vector<Achievement> AchievementDAO::getUserAchievements(int userId) const {
+    (void)userId; // 当前实现中依赖先调用 loadUserAchievements(userId)
     return userAchievements;
 }
 
-Achievement* AchievementDAO::getUserAchievement(int userId, const string& achievementName) {
+Achievement* AchievementDAO::getUserAchievement(int userId, const string& achievementKey) {
+    (void)userId; // 实际上依赖于调用者先 loadUserAchievements(userId)
     for (auto& achievement : userAchievements) {
-        if (achievement.name == achievementName) {
+        if (achievement.unlock_condition == achievementKey) {
             return &achievement;
         }
     }
     
-    Achievement definition = getAchievementDefinition(achievementName);
+    Achievement definition = getAchievementDefinition(achievementKey);
     if (definition.id == 0) {
         return nullptr;
     }
@@ -287,8 +291,8 @@ Achievement* AchievementDAO::getUserAchievement(int userId, const string& achiev
     return &userAchievements.back();
 }
 
-bool AchievementDAO::unlockAchievement(int userId, const string& achievementName) {
-    Achievement* achievement = getUserAchievement(userId, achievementName);
+bool AchievementDAO::unlockAchievement(int userId, const string& achievementKey) {
+    Achievement* achievement = getUserAchievement(userId, achievementKey);
     if (achievement && !achievement->unlocked) {
         achievement->unlocked = true;
         achievement->progress = achievement->target_value;
@@ -299,14 +303,14 @@ bool AchievementDAO::unlockAchievement(int userId, const string& achievementName
     return false;
 }
 
-bool AchievementDAO::updateAchievementProgress(int userId, const string& achievementName, int progress) {
-    Achievement* achievement = getUserAchievement(userId, achievementName);
+bool AchievementDAO::updateAchievementProgress(int userId, const string& achievementKey, int progress) {
+    Achievement* achievement = getUserAchievement(userId, achievementKey);
     if (achievement && !achievement->unlocked) {
         achievement->progress = progress;
         achievement->updated_date = getCurrentTimestamp();
         
         if (progress >= achievement->target_value) {
-            return unlockAchievement(userId, achievementName);
+            return unlockAchievement(userId, achievementKey);
         }
         
         return saveUserAchievements(userId);
@@ -320,6 +324,7 @@ bool AchievementDAO::resetUserAchievements(int userId) {
 }
 
 int AchievementDAO::getUnlockedAchievementCount(int userId) const {
+    (void)userId; // 依赖调用者先 loadUserAchievements(userId)
     int count = 0;
     for (const auto& achievement : userAchievements) {
         if (achievement.unlocked) count++;
@@ -328,6 +333,7 @@ int AchievementDAO::getUnlockedAchievementCount(int userId) const {
 }
 
 int AchievementDAO::getTotalXP(int userId) const {
+    (void)userId; // 依赖调用者先 loadUserAchievements(userId)
     int totalXP = 0;
     for (const auto& achievement : userAchievements) {
         if (achievement.unlocked) totalXP += achievement.reward_xp;
@@ -335,61 +341,44 @@ int AchievementDAO::getTotalXP(int userId) const {
     return totalXP;
 }
 
-vector<Achievement> AchievementDAO::getRecentlyUnlockedAchievements(int userId, int count) const {
-    vector<Achievement> result;
-    vector<Achievement> unlocked;
-    
+std::vector<Achievement> AchievementDAO::getRecentlyUnlockedAchievements(int userId, int count) const {
+    (void)userId; // 同样依赖之前已 loadUserAchievements(userId)
+    std::vector<Achievement> unlocked;
     for (const auto& achievement : userAchievements) {
-        if (achievement.unlocked && !achievement.unlocked_date.empty()) {
+        if (achievement.unlocked) {
             unlocked.push_back(achievement);
         }
     }
-    
-    sort(unlocked.begin(), unlocked.end(),
-        [](const Achievement& a, const Achievement& b) {
-            return a.unlocked_date > b.unlocked_date;
-        });
-    
-    for (int i = 0; i < min(count, (int)unlocked.size()); i++) {
-        result.push_back(unlocked[i]);
+
+    std::sort(unlocked.begin(), unlocked.end(),
+              [](const Achievement& a, const Achievement& b) {
+                  return a.unlocked_date > b.unlocked_date; // 依赖时间字符串格式可比较
+              });
+
+    if (count > 0 && static_cast<int>(unlocked.size()) > count) {
+        unlocked.resize(count);
     }
-    
-    return result;
+    return unlocked;
 }
 
 bool AchievementDAO::userAchievementFileExists(int userId) const {
     return fileExists(getUserAchievementFilePath(userId));
 }
 
-string AchievementDAO::getDefinitionFilePath() const {
-    return dataFilePath + "achievement_definitions.csv";
-}
-
-string AchievementDAO::getUserAchievementFilePath(int userId) const {
-    return dataFilePath + "user_" + to_string(userId) + "_achievements.csv";
-}
-
-bool AchievementDAO::fileExists(const string& filename) const {
-    ifstream file(filename);
-    return file.good();
-}
-
-bool AchievementDAO::writeFile(const string& filename, const string& content) {
-    ofstream file(filename);
-    if (!file.is_open()) return false;
-    file << content;
-    file.close();
-    return true;
-}
-
-string AchievementDAO::getCurrentTimestamp() {
-    time_t now = time(nullptr);
-    tm* localTime = localtime(&now);
-    stringstream ss;
-    ss << put_time(localTime, "%Y-%m-%d %H:%M:%S");
-    return ss.str();
+std::string AchievementDAO::getCurrentTimestamp() {
+    std::time_t now = std::time(nullptr);
+    std::tm tm{};
+#if defined(_WIN32) || defined(_WIN64)
+    localtime_s(&tm, &now);
+#else
+    localtime_r(&now, &tm);
+#endif
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    return oss.str();
 }
 
 int AchievementDAO::generateAchievementId() {
     return nextAchievementId++;
 }
+
