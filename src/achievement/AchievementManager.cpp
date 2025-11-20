@@ -4,10 +4,14 @@
 #include <iomanip>
 #include <sstream>
 #include <algorithm>
+#include <sqlite3.h>
+#include "database/DatabaseManager.h"
 
 // 构造函数接收 AchievementDAO 和用户ID
-AchievementManager::AchievementManager(std::unique_ptr<AchievementDAO> dao, int userId) 
-    : achievementDAO(std::move(dao)), currentUserId(userId) {
+AchievementManager::AchievementManager(std::unique_ptr<AchievementDAO> dao, int userId)
+    : achievementDAO(std::move(dao)),
+      statisticsAnalyzer(std::make_unique<StatisticsAnalyzer>()),
+      currentUserId(userId) {
     initialize();
 }
 
@@ -405,27 +409,68 @@ void AchievementManager::printAchievement(const Achievement& definition,
     std::cout << "\n";
 }
 
-// 统计信息获取方法（需要队友实现其他DAO）
+// 统计信息获取方法（实际接入 StatisticsAnalyzer / DatabaseManager）
 int AchievementManager::getCompletedTaskCount() const {
-    // TODO: 需要队友实现 TaskDAO 或类似的接口
-    // 临时返回模拟数据
-    return 5; // 模拟5个已完成任务
+    if (!statisticsAnalyzer) {
+        return 0;
+    }
+    return statisticsAnalyzer->getTotalTasksCompleted();
 }
 
 int AchievementManager::getCurrentStreak() const {
-    // TODO: 需要队友实现 UserStatsDAO 或类似的接口
-    return 3; // 模拟3天连续记录
+    if (!statisticsAnalyzer) {
+        return 0;
+    }
+    return statisticsAnalyzer->getCurrentStreak();
 }
 
 int AchievementManager::getDailyTaskCount(const std::string& date) const {
-    // TODO: 需要队友实现 TaskDAO 的按日期统计方法
-    (void)date; // 避免未使用参数警告
-    return 2; // 模拟今日完成2个任务
+    if (!statisticsAnalyzer) {
+        return 0;
+    }
+
+    // 兼容“today”快捷字符串
+    if (date.empty() || date == "today") {
+        return statisticsAnalyzer->getTasksCompletedToday();
+    }
+
+    // 解析日期字符串，格式: YYYY-MM-DD
+    std::tm tm = {};
+    std::istringstream ss(date);
+    ss >> std::get_time(&tm, "%Y-%m-%d");
+    if (ss.fail()) {
+        std::cerr << "无法解析日期: " << date << "\n";
+        return 0;
+    }
+
+    const auto& dbManager = DatabaseManager::getInstance();
+    if (!dbManager.isOpen()) {
+        std::cerr << "数据库未打开，无法统计指定日期任务\n";
+        return 0;
+    }
+
+    sqlite3* db = dbManager.getRawConnection();
+    sqlite3_stmt* stmt = nullptr;
+    const std::string sql =
+        "SELECT COUNT(*) FROM tasks WHERE completed = 1 AND DATE(completed_date) = ?;";
+
+    int count = 0;
+    if (sqlite3_prepare_v2(db, sql.c_str(), -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_text(stmt, 1, date.c_str(), -1, SQLITE_TRANSIENT);
+        if (sqlite3_step(stmt) == SQLITE_ROW) {
+            count = sqlite3_column_int(stmt, 0);
+        }
+        sqlite3_finalize(stmt);
+    }
+
+    return count;
 }
 
 int AchievementManager::getTotalPomodoroCount() const {
-    // TODO: 需要队友实现 PomodoroDAO 或类似的接口
-    return 15; // 模拟15个番茄钟
+    if (!statisticsAnalyzer) {
+        return 0;
+    }
+    return statisticsAnalyzer->getTotalPomodoros();
 }
 
 void AchievementManager::setCurrentUserId(int userId) {
