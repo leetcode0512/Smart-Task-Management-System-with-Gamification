@@ -4,6 +4,7 @@
 #include <memory>
 #include <unordered_map>
 #include "../database/DAO/AchievementDAO.h"
+#include "../statistics/StatisticsAnalyzer.h"
 #include "entities.h"  // 包含实体定义
 
 // 成就进度信息
@@ -31,6 +32,7 @@ public:
 class AchievementManager {
 private:
     std::unique_ptr<AchievementDAO> achievementDAO;
+    std::unique_ptr<StatisticsAnalyzer> statisticsAnalyzer;
     int currentUserId;
     
     // 成就定义缓存
