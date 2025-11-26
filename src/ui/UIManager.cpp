@@ -1,7 +1,18 @@
 #include "ui/UIManager.h"
+#include "database/DatabaseManager.h"
+#include "statistics/StatisticsAnalyzer.h"
+#include "gamification/XPSystem.h"
+#include "HeatmapVisualizer/HeatmapVisualizer.h"
+#include "project/ProjectManager.h"
+#include "task/TaskManager.h" // ⭐ 引入任务管理器
+
 #include <iostream>
 #include <iomanip>
 #include <limits>
+#include <thread> // ⭐ 动画延迟
+#include <chrono> 
+#include <vector>
+#include <random> // ⭐ 随机鼓励语
 
 using namespace std;
 
@@ -25,6 +36,7 @@ UIManager::UIManager() {
     xpSystem = new XPSystem();
     heatmap = new HeatmapVisualizer();
     projectManager = new ProjectManager();
+    taskManager = new TaskManager(); // ⭐ 初始化任务管理器
     
     cout << "✅ UI管理器初始化成功" << endl;
 }
@@ -34,12 +46,12 @@ UIManager::~UIManager() {
     delete xpSystem;
     delete heatmap;
     delete projectManager;
+    delete taskManager; // ⭐ 清理内存
 }
 
 // === UI辅助方法 ===
 
 void UIManager::clearScreen() {
-    // ANSI转义序列清屏
     cout << "\033[2J\033[H";
 }
 
@@ -116,26 +128,83 @@ bool UIManager::confirmAction(const string& prompt) {
     return (response == "y" || response == "Y" || response == "yes" || response == "YES");
 }
 
-void UIManager::displayUserStatusBar() {
+// ==========================================
+// ⭐ 游戏化 UI 增强实现 (New Features)
+// ==========================================
+
+void UIManager::printProgressBar(int current, int total, int width, string color) {
+    float percentage = (total == 0) ? 0 : (float)current / total;
+    if (percentage > 1.0f) percentage = 1.0f;
+    int filled = static_cast<int>(width * percentage);
+    
+    cout << " [";
+    cout << color;
+    for (int i = 0; i < width; ++i) {
+        if (i < filled) cout << "█";
+        else cout << "░";
+    }
+    cout << COLOR_RESET << "] " << int(percentage * 100) << "%";
+}
+
+void UIManager::printEncouragement() {
+    static const vector<string> quotes = {
+        "Keep the streak alive! 🔥", 
+        "Small steps, big progress.", 
+        "You are unstoppable today!", 
+        "Focus is the key to victory."
+    };
+    static random_device rd;
+    static mt19937 gen(rd());
+    uniform_int_distribution<> dis(0, quotes.size() - 1);
+
+    cout << "\n" << BOLD << COLOR_YELLOW << " >> " << quotes[dis(gen)] << COLOR_RESET << "\n";
+}
+
+// 替代原有的 displayUserStatusBar
+void UIManager::displayHUD() {
     int level = xpSystem->getCurrentLevel();
-    int totalXP = xpSystem->getTotalXP();
-    int nextLevelXP = xpSystem->getXPForNextLevel();
+    int currentXP = xpSystem->getCurrentXP();
+    int nextLevelXP = xpSystem->getXPForNextLevel(); 
     string title = xpSystem->getCurrentLevelTitle();
     int achievements = statsAnalyzer->getAchievementsUnlocked();
     
     cout << BOLD << COLOR_CYAN;
-    printSeparator('━', 55);
+    printSeparator('━', 60);
     cout << COLOR_RESET;
     
-    cout << COLOR_MAGENTA << "👤 " << COLOR_RESET 
-         << "等级 " << BOLD << level << COLOR_RESET 
-         << " (" << title << ") | "
-         << COLOR_YELLOW << "XP: " << COLOR_RESET << totalXP << "/" << nextLevelXP << " | "
-         << COLOR_GREEN << "⭐ 成就: " << COLOR_RESET << achievements << "\n";
+    // 第一行：等级与成就
+    cout << " 🛡️  " << BOLD << "Lv." << level << COLOR_RESET 
+         << " [" << COLOR_MAGENTA << title << COLOR_RESET << "] "
+         << string(10, ' ')
+         << "⭐ 成就: " << COLOR_YELLOW << achievements << COLOR_RESET << "\n";
+    
+    // 第二行：可视化的 XP 进度条
+    cout << " XP: ";
+    printProgressBar(currentXP, nextLevelXP, 35, COLOR_GREEN);
+    cout << " (" << currentXP << "/" << nextLevelXP << ")\n";
     
     cout << BOLD << COLOR_CYAN;
-    printSeparator('━', 55);
-    cout << COLOR_RESET << "\n";
+    printSeparator('━', 60);
+    cout << COLOR_RESET;
+    
+    printEncouragement();
+}
+
+// 任务完成特效
+void UIManager::showTaskCompleteCelebration(int xpGained) {
+    cout << "\n";
+    for(int i=0; i<3; ++i) {
+        cout << COLOR_YELLOW << "  ★  Reward Unlocking...  ★  " << COLOR_RESET << "\r";
+        cout.flush();
+        this_thread::sleep_for(chrono::milliseconds(150));
+        cout << "                           \r"; 
+        this_thread::sleep_for(chrono::milliseconds(100));
+    }
+    
+    cout << "\n  " << COLOR_GREEN << BOLD << "✅ TASK COMPLETED! Awesome!" << COLOR_RESET << "\n";
+    cout << "  " << COLOR_YELLOW << "+" << xpGained << " XP" << COLOR_RESET << "\n\n";
+    
+    this_thread::sleep_for(chrono::milliseconds(800)); 
 }
 
 // === 主界面 ===
@@ -150,7 +219,7 @@ void UIManager::showMainMenu() {
    ╚═══════════════════════════════════════════════════╝
 )" << COLOR_RESET;
     
-    displayUserStatusBar();
+    displayHUD(); // ⭐ 使用新的 HUD
     
     vector<string> options = {
         "📋 任务管理",
@@ -172,24 +241,12 @@ void UIManager::run() {
         int choice = getUserChoice(5);
         
         switch (choice) {
-            case 1:
-                showTaskMenu();
-                break;
-            case 2:
-                showProjectMenu();
-                break;
-            case 3:
-                showStatisticsMenu();
-                break;
-            case 4:
-                showGamificationMenu();
-                break;
-            case 5:
-                showSettingsMenu();
-                break;
-            case 0:
-                exitProgram();
-                break;
+            case 1: showTaskMenu(); break;
+            case 2: showProjectMenu(); break;
+            case 3: showStatisticsMenu(); break;
+            case 4: showGamificationMenu(); break;
+            case 5: showSettingsMenu(); break;
+            case 0: exitProgram(); break;
         }
     }
 }
@@ -202,7 +259,7 @@ void UIManager::exitProgram() {
     }
 }
 
-// === 任务管理界面 ===
+// === 任务管理界面 (⭐ 已接入逻辑) ===
 
 void UIManager::showTaskMenu() {
     clearScreen();
@@ -213,7 +270,7 @@ void UIManager::showTaskMenu() {
         "查看所有任务",
         "更新任务",
         "删除任务",
-        "完成任务"
+        "完成任务 (获取XP!)" // 文案优化
     };
     
     printMenu(options);
@@ -224,7 +281,7 @@ void UIManager::showTaskMenu() {
         case 2: listTasks(); break;
         case 3: updateTask(); break;
         case 4: deleteTask(); break;
-        case 5: completeTask(); break;
+        case 5: completeTask(); break; // 调用增强版逻辑
         case 0: return;
     }
 }
@@ -233,9 +290,18 @@ void UIManager::createTask() {
     clearScreen();
     printHeader("✨ 创建新任务");
     
-    displayInfo("注意：任务管理模块尚未完全实现");
-    displayWarning("需要等待成员C完成TaskManager模块");
+    string name = getInput("任务名称: ");
+    string desc = getInput("任务描述: ");
     
+    // ⭐ 使用真实 Logic
+    Task newTask(name, desc);
+    int id = taskManager->createTask(newTask);
+    
+    if (id > 0) {
+        displaySuccess("任务创建成功！ID: " + to_string(id));
+    } else {
+        displayError("创建失败。");
+    }
     pause();
 }
 
@@ -243,27 +309,41 @@ void UIManager::listTasks() {
     clearScreen();
     printHeader("📋 任务列表");
     
-    displayInfo("注意：任务管理模块尚未完全实现");
-    displayWarning("需要等待成员C完成TaskManager模块");
-    
+    // ⭐ 使用真实 Logic
+    auto tasks = taskManager->getAllTasks();
+    if (tasks.empty()) {
+        displayInfo("暂无任务。赶快创建一个吧！");
+    } else {
+        cout << "\n";
+        for (const auto& t : tasks) {
+            if (t.isCompleted()) {
+                cout << COLOR_GREEN << " [✔] " << t.getId() << ". " << t.getName() << COLOR_RESET << "\n";
+            } else {
+                cout << COLOR_RED << " [ ] " << COLOR_RESET << t.getId() << ". " << t.getName() << "\n";
+            }
+        }
+    }
     pause();
 }
 
 void UIManager::updateTask() {
     clearScreen();
     printHeader("✏️  更新任务");
-    
-    displayInfo("注意：任务管理模块尚未完全实现");
-    
+    displayInfo("注意：任务管理模块更新功能尚未完全实现");
     pause();
 }
 
 void UIManager::deleteTask() {
     clearScreen();
     printHeader("🗑️  删除任务");
+    int id = getIntInput("请输入要删除的任务ID: ");
     
-    displayInfo("注意：任务管理模块尚未完全实现");
-    
+    // ⭐ 使用真实 Logic
+    if (taskManager->deleteTask(id)) {
+        displaySuccess("任务已删除。");
+    } else {
+        displayError("删除失败，ID可能不存在。");
+    }
     pause();
 }
 
@@ -271,13 +351,35 @@ void UIManager::completeTask() {
     clearScreen();
     printHeader("✅ 完成任务");
     
-    displayInfo("注意：任务管理模块尚未完全实现");
-    displayInfo("完成任务后会自动获得经验值奖励");
+    auto tasks = taskManager->getAllTasks();
+    bool hasPending = false;
+    for(const auto& t : tasks) {
+        if (!t.isCompleted()) {
+            cout << COLOR_CYAN << "ID: " << t.getId() << " | " << t.getName() << COLOR_RESET << "\n";
+            hasPending = true;
+        }
+    }
     
-    pause();
+    if (!hasPending) {
+        displayInfo("没有待完成的任务！");
+        pause();
+        return;
+    }
+
+    int id = getIntInput("\n请输入完成的任务ID: ");
+    
+    // ⭐ 调用 Logic 并展示动画
+    if (taskManager->completeTask(id)) {
+        int xpReward = xpSystem->getXPForTaskCompletion(1); 
+        xpSystem->awardXP(xpReward, "任务完成");
+        showTaskCompleteCelebration(xpReward);
+    } else {
+        displayError("操作失败！");
+        pause();
+    }
 }
 
-// === 项目管理界面 ===
+// === 项目管理界面 (完整保留) ===
 
 void UIManager::showProjectMenu() {
     clearScreen();
@@ -381,9 +483,7 @@ void UIManager::viewProjectDetails() {
 void UIManager::updateProject() {
     clearScreen();
     printHeader("✏️  更新项目");
-    
     displayInfo("功能开发中...");
-    
     pause();
 }
 
@@ -404,7 +504,7 @@ void UIManager::deleteProject() {
     pause();
 }
 
-// === 统计分析界面 ===
+// === 统计分析界面 (完整保留) ===
 
 void UIManager::showStatisticsMenu() {
     clearScreen();
@@ -434,50 +534,40 @@ void UIManager::showStatisticsMenu() {
 void UIManager::showStatisticsSummary() {
     clearScreen();
     printHeader("📈 统计数据总览");
-    
     cout << statsAnalyzer->generateSummary();
-    
     pause();
 }
 
 void UIManager::showDailyReport() {
     clearScreen();
     printHeader("📅 每日报告");
-    
     cout << statsAnalyzer->generateDailyReport();
-    
     pause();
 }
 
 void UIManager::showWeeklyReport() {
     clearScreen();
     printHeader("📈 每周报告");
-    
     cout << statsAnalyzer->generateWeeklyReport();
-    
     pause();
 }
 
 void UIManager::showMonthlyReport() {
     clearScreen();
     printHeader("📊 每月报告");
-    
     cout << statsAnalyzer->generateMonthlyReport();
-    
     pause();
 }
 
 void UIManager::showHeatmap() {
     clearScreen();
     printHeader("🔥 任务完成热力图");
-    
     // 显示热力图（数据从数据库中获取）
     cout << heatmap->generateHeatmap(90);
-    
     pause();
 }
 
-// === 游戏化界面 ===
+// === 游戏化界面 (完整保留) ===
 
 void UIManager::showGamificationMenu() {
     clearScreen();
@@ -503,41 +593,31 @@ void UIManager::showGamificationMenu() {
 void UIManager::showXPAndLevel() {
     clearScreen();
     printHeader("⭐ 经验值和等级");
-    
     cout << xpSystem->displayLevelInfo();
-    
     pause();
 }
 
 void UIManager::showAchievements() {
     clearScreen();
     printHeader("🏆 成就系统");
-    
     int unlocked = statsAnalyzer->getAchievementsUnlocked();
-    
     cout << "\n已解锁成就: " << COLOR_GREEN << unlocked << COLOR_RESET << " 个\n\n";
-    
     displayInfo("成就系统详细功能开发中...");
     displayInfo("需要成就模块完全实现后集成");
-    
     pause();
 }
 
 void UIManager::showChallenges() {
     clearScreen();
     printHeader("🎯 挑战系统");
-    
     int completed = statsAnalyzer->getChallengesCompleted();
-    
     cout << "\n已完成挑战: " << COLOR_GREEN << completed << COLOR_RESET << " 个\n\n";
-    
     displayInfo("挑战系统详细功能开发中...");
     displayInfo("需要挑战模块完全实现后集成");
-    
     pause();
 }
 
-// === 设置界面 ===
+// === 设置界面 (完整保留) ===
 
 void UIManager::showSettingsMenu() {
     clearScreen();
@@ -561,22 +641,18 @@ void UIManager::showSettingsMenu() {
 void UIManager::viewSettings() {
     clearScreen();
     printHeader("📋 当前设置");
-    
     displayInfo("设置模块开发中...");
-    
     pause();
 }
 
 void UIManager::updateSettings() {
     clearScreen();
     printHeader("✏️  修改设置");
-    
     displayInfo("设置模块开发中...");
-    
     pause();
 }
 
-// === 消息显示 ===
+// === 消息显示 (完整保留) ===
 
 void UIManager::displayMessage(const string& msg, const string& type) {
     if (type == "success") {
