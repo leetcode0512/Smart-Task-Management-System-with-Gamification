@@ -1,12 +1,16 @@
 #include "task/task.h"
 
-// 原有构造函数
+// Default constructor
+Task::Task()
+    : id(-1), name(""), description(""), projectId(0), completed(false) {}
+
+// Main constructor
 Task::Task(const std::string &name, const std::string &desc, int projectId)
     : id(-1), name(name), description(desc), projectId(projectId), completed(false) {}
 
-// ⭐ 新增：完整构造函数（从数据库读取时使用）
+// Full constructor (used when reading from database)
 Task::Task(int id, const std::string &name, const std::string &desc, bool completed, int projectId)
-    : id(id), name(name), description(desc), completed(completed), projectId(projectId) {}
+    : id(id), name(name), description(desc), projectId(projectId), completed(completed) {}
 
 // ID 相关方法 ⭐ 新增
 int Task::getId() const {
@@ -24,6 +28,11 @@ void Task::markCompleted() {
 
 bool Task::isCompleted() const {
     return completed;
+}
+
+// ⭐ 新增 setCompleted
+void Task::setCompleted(bool completed) {
+    this->completed = completed;
 }
 
 // Getters

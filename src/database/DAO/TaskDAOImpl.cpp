@@ -4,6 +4,7 @@
 #include <iostream>
 #include <sstream>
 #include <ctime>
+#include <optional>
 
 // =====================
 // 构造函数
@@ -84,32 +85,34 @@ int TaskDAOImpl::insertTask(const Task& task) {
     return id;
 }
 
-Task TaskDAOImpl::getTaskById(int id) {
+std::optional<Task> TaskDAOImpl::getTaskById(int id) {
     sqlite3* db = getDatabaseConnection();
-    if (!db) return Task();
+    if (!db) return std::nullopt;
 
     const char* sql = "SELECT id, title, description, completed, project_id FROM tasks WHERE id = ? AND deleted = 0";
     sqlite3_stmt* stmt;
-    Task task;
 
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr) != SQLITE_OK) {
         std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
-        return task;
+        return std::nullopt;
     }
 
     sqlite3_bind_int(stmt, 1, id);
 
+    std::optional<Task> result = std::nullopt;
     if (sqlite3_step(stmt) == SQLITE_ROW) {
+        Task task;
         task.setId(sqlite3_column_int(stmt, 0));
         task.setName(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1)));
         task.setDescription(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2)));
         task.setCompleted(sqlite3_column_int(stmt, 3) != 0);
         task.setProjectId(sqlite3_column_int(stmt, 4));
+        result = task;
     }
 
     sqlite3_finalize(stmt);
 
-    return task;
+    return result;
 }
 
 std::vector<Task> TaskDAOImpl::getAllTasks() {

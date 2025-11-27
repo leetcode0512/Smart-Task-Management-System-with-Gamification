@@ -14,13 +14,15 @@ BIN_DIR = bin
 SRCS = $(SRC_DIR)/main.cpp \
        $(SRC_DIR)/database/databasemanager.cpp \
        $(SRC_DIR)/database/DAO/ProjectDAO.cpp \
+       $(SRC_DIR)/database/DAO/TaskDAOImpl.cpp \
        $(SRC_DIR)/project/Project.cpp \
        $(SRC_DIR)/project/ProjectManager.cpp \
        $(SRC_DIR)/statistics/StatisticsAnalyzer.cpp \
        $(SRC_DIR)/gamification/XPSystem.cpp \
        $(SRC_DIR)/HeatmapVisualizer/HeatmapVisualizer.cpp \
-       $(SRC_DIR)/ui/UIManager.cpp
-# Note: ReminderSystem excluded due to missing DAO implementation
+       $(SRC_DIR)/ui/UIManager.cpp \
+       $(SRC_DIR)/task/task.cpp \
+       $(SRC_DIR)/task/TaskManager.cpp
 
 # Object files
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(BUILD_DIR)/%.o)
@@ -42,6 +44,7 @@ directories:
 	@mkdir -p $(BUILD_DIR)/gamification
 	@mkdir -p $(BUILD_DIR)/HeatmapVisualizer
 	@mkdir -p $(BUILD_DIR)/ui
+	@mkdir -p $(BUILD_DIR)/task
 	@mkdir -p $(BIN_DIR)
 
 # Link

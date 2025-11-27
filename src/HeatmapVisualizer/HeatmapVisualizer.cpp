@@ -179,11 +179,15 @@ string HeatmapVisualizer::generateHeatmap(int days) {
         output << weekdays[day] << "   ";
         
         for (int week = 0; week < days/7; week++) {
-            int index = week * 7 + day;
-            if (index < dates.size()) {
-                int count = (taskData.find(dates[index]) != taskData.end()) 
-                            ? taskData[dates[index]] : 0;
-                output << getColorBlock(count) << getColorBlock(count) << "  ";
+            // week and day are always non-negative from loop bounds, so the index is safe
+            int rawIndex = week * 7 + day;
+            if (rawIndex >= 0) {
+                size_t index = static_cast<size_t>(rawIndex);
+                if (index < dates.size()) {
+                    int count = (taskData.find(dates[index]) != taskData.end()) 
+                                ? taskData[dates[index]] : 0;
+                    output << getColorBlock(count) << getColorBlock(count) << "  ";
+                }
             }
         }
         output << "\n";

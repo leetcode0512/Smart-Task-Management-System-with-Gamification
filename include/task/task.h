@@ -8,11 +8,12 @@ private:
     int id;                    // ⭐ 添加 ID 字段
     std::string name;
     std::string description;
-    bool completed;
     int projectId;
+    bool completed;
 
 public:
     // 构造函数
+    Task();  // ⭐ 新增默认构造函数
     Task(const std::string &name, const std::string &desc, int projectId = 0);
     Task(int id, const std::string &name, const std::string &desc, bool completed, int projectId = 0);  // ⭐ 新增
 
@@ -23,6 +24,7 @@ public:
     // 状态管理
     void markCompleted();
     bool isCompleted() const;
+    void setCompleted(bool completed);  // ⭐ 新增
 
     // Getters
     std::string getName() const;

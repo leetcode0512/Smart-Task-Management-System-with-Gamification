@@ -38,7 +38,7 @@ private:
     // === 内部辅助方法 ===
     void clearScreen();
     void printHeader(const std::string& title);
-    void printSeparator(char symbol, int length);
+    void printSeparator(const std::string& symbol, int length);
     void printMenu(const std::vector<std::string>& options);
     int getUserChoice(int maxChoice);
     std::string getInput(const std::string& prompt);

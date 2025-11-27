@@ -39,3 +39,15 @@
 
 # debug information files
 *.dwo
+
+# Build directories
+build/
+bin/
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# CodeQL artifacts
+_codeql_detected_source_root
