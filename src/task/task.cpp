@@ -1,14 +1,14 @@
 #include "task/task.h"
 
-// ⭐ 新增默认构造函数
+// Default constructor
 Task::Task()
     : id(-1), name(""), description(""), projectId(0), completed(false) {}
 
-// 原有构造函数
+// Main constructor
 Task::Task(const std::string &name, const std::string &desc, int projectId)
     : id(-1), name(name), description(desc), projectId(projectId), completed(false) {}
 
-// ⭐ 新增：完整构造函数（从数据库读取时使用）
+// Full constructor (used when reading from database)
 Task::Task(int id, const std::string &name, const std::string &desc, bool completed, int projectId)
     : id(id), name(name), description(desc), projectId(projectId), completed(completed) {}
 

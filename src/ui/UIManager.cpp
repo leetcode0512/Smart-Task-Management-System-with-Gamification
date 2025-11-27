@@ -160,7 +160,12 @@ void UIManager::printEncouragement() {
     cout << "\n" << BOLD << COLOR_YELLOW << " >> " << quotes[dis(gen)] << COLOR_RESET << "\n";
 }
 
-// 替代原有的 displayUserStatusBar
+// HUD display constants
+namespace {
+    const int HUD_SPACING_WIDTH = 10;
+}
+
+// Replace displayUserStatusBar
 void UIManager::displayHUD() {
     int level = xpSystem->getCurrentLevel();
     int currentXP = xpSystem->getCurrentXP();
@@ -172,13 +177,13 @@ void UIManager::displayHUD() {
     printSeparator("-", 60);
     cout << COLOR_RESET;
     
-    // 第一行：等级与成就
+    // Line 1: Level and achievements
     cout << " Lv." << level << COLOR_RESET 
          << " [" << COLOR_MAGENTA << title << COLOR_RESET << "] "
-         << string(10, ' ')
+         << string(HUD_SPACING_WIDTH, ' ')
          << "Achievements: " << COLOR_YELLOW << achievements << COLOR_RESET << "\n";
     
-    // 第二行：可视化的 XP 进度条
+    // Line 2: XP progress bar
     cout << " XP: ";
     printProgressBar(currentXP, nextLevelXP, 35, COLOR_GREEN);
     cout << " (" << currentXP << "/" << nextLevelXP << ")\n";

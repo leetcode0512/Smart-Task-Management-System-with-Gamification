@@ -249,6 +249,11 @@ bool DatabaseManager::createAchievementTable() {
     return execute(sql);
 }
 
+// Default user ID for the single-user system
+namespace {
+    const int DEFAULT_USER_ID = 1;
+}
+
 bool DatabaseManager::createUserStatsTable() {
     const char* sql = R"(
         CREATE TABLE IF NOT EXISTS user_stats (
@@ -273,12 +278,11 @@ bool DatabaseManager::createUserStatsTable() {
     }
     
     // Initialize default user stats row if not exists
-    const char* initSql = R"(
-        INSERT OR IGNORE INTO user_stats (id, total_xp, level, current_streak, longest_streak)
-        VALUES (1, 0, 1, 0, 0);
-    )";
+    std::stringstream initSql;
+    initSql << "INSERT OR IGNORE INTO user_stats (id, total_xp, level, current_streak, longest_streak) "
+            << "VALUES (" << DEFAULT_USER_ID << ", 0, 1, 0, 0);";
     
-    return execute(initSql);
+    return execute(initSql.str());
 }
 
 bool DatabaseManager::createUserSettingsTable() {
