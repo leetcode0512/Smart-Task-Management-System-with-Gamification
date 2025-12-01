@@ -6,7 +6,7 @@
 #include <thread>
 #include <atomic>
 #include "../database/DAO/ReminderDAO.h"  // 包含队友的DAO头文件
-#include "entities.h"  // 包含实体定义
+include "common/entities.h"  // 包含实体定义
 
 class ReminderSystem {
 private:
