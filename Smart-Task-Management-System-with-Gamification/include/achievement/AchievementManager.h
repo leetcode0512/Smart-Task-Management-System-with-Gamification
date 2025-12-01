@@ -5,7 +5,7 @@
 #include <unordered_map>
 #include "../database/DAO/AchievementDAO.h"
 #include "../statistics/StatisticsAnalyzer.h"
-include "common/entities.h"  // 包含实体定义
+#include "common/entities.h"  // 包含实体定义
 
 // 成就进度信息
 struct AchievementProgress {
