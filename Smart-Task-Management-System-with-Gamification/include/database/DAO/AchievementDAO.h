@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <map>
-#include "entities.h"
+include "common/entities.h"  // 包含实体定义
 
 class AchievementDAO {
 private:
