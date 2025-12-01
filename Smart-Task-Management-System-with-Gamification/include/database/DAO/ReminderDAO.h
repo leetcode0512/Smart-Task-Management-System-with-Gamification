@@ -1,7 +1,7 @@
 #ifndef REMINDER_DAO_H
 #define REMINDER_DAO_H
 
-#include "entities.h"
+include "common/entities.h"  // 包含实体定义
 #include <vector>
 #include <optional>
 #include <chrono>
